@@ -7,10 +7,7 @@
 *.test
 *.out
 
-# Go workspace files
-*.mod
-*.sum
-go.sum
+
 
 # IDE
 .idea/
@@ -39,3 +36,4 @@ data/
 /bin/
 /dist/
 /build/
+
