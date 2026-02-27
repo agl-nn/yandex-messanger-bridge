@@ -14,7 +14,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/viper"
 
-	"yandex-messenger-bridge/internal/config"
+	"yandex-messenger-bridge/config"
 	"yandex-messenger-bridge/internal/repository/postgres"
 	"yandex-messenger-bridge/internal/transport/api"
 	"yandex-messenger-bridge/internal/transport/middleware"
