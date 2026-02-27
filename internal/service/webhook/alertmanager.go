@@ -1,10 +1,14 @@
 package webhook
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/rs/zerolog/log"
 
 	"yandex-messenger-bridge/internal/domain"
 )
@@ -13,12 +17,10 @@ import (
 func (h *Handler) HandleAlertmanager(w http.ResponseWriter, r *http.Request) {
 	integrationID := r.PathValue("id")
 
-	// Устанавливаем таймаут
 	ctx, cancel := context.WithTimeout(r.Context(), h.config.AlertmanagerTimeout)
 	defer cancel()
 	r = r.WithContext(ctx)
 
-	// Загружаем интеграцию
 	integration, err := h.getIntegrationByID(ctx, integrationID)
 	if err != nil {
 		log.Error().Err(err).Str("id", integrationID).Msg("Integration not found")
@@ -26,7 +28,6 @@ func (h *Handler) HandleAlertmanager(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Читаем тело запроса
 	body, err := h.readBody(r)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to read body")
@@ -34,7 +35,6 @@ func (h *Handler) HandleAlertmanager(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Парсим Alertmanager webhook
 	var alertData domain.AlertmanagerWebhook
 	if err := json.Unmarshal(body, &alertData); err != nil {
 		log.Error().Err(err).Msg("Failed to parse Alertmanager webhook")
@@ -42,18 +42,15 @@ func (h *Handler) HandleAlertmanager(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Извлекаем конфигурацию
 	alertConfig := &domain.AlertmanagerConfig{}
 	if err := mapToStruct(integration.SourceConfig, alertConfig); err != nil {
 		log.Error().Err(err).Msg("Failed to parse Alertmanager config")
-		// Используем значения по умолчанию
 		alertConfig = &domain.AlertmanagerConfig{
 			SendResolved: false,
 			GroupMode:    "single",
 		}
 	}
 
-	// Фильтруем алерты (улучшение #5)
 	var alertsToSend []domain.Alert
 	for _, alert := range alertData.Alerts {
 		if alertConfig.ShouldSendAlert(&alert) {
@@ -62,27 +59,18 @@ func (h *Handler) HandleAlertmanager(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(alertsToSend) == 0 {
-		// Нет алертов для отправки
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ok","filtered":true}`))
 		return
 	}
 
-	// Формируем сообщение в зависимости от режима группировки
 	var message string
-	switch alertConfig.GroupMode {
-	case "group":
+	if len(alertsToSend) == 1 {
+		message = h.formatAlertmanagerSingle(&alertsToSend[0], &alertData, alertConfig)
+	} else {
 		message = h.formatAlertmanagerGroup(&alertData, alertsToSend, alertConfig)
-	default:
-		// Отправляем отдельные сообщения или одно сгруппированное
-		if len(alertsToSend) == 1 {
-			message = h.formatAlertmanagerSingle(&alertsToSend[0], &alertData, alertConfig)
-		} else {
-			message = h.formatAlertmanagerGroup(&alertData, alertsToSend, alertConfig)
-		}
 	}
 
-	// Отправляем в Yandex
 	if err := h.sendToYandex(ctx, integration, message); err != nil {
 		log.Error().Err(err).Msg("Failed to send to Yandex")
 		http.Error(w, "Failed to send", http.StatusInternalServerError)
@@ -91,20 +79,18 @@ func (h *Handler) HandleAlertmanager(w http.ResponseWriter, r *http.Request) {
 
 	h.logDelivery(integrationID, alertData, nil)
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"ok","alerts_sent":` + string(len(alertsToSend)) + `}`))
+	w.Write([]byte(`{"status":"ok"}`))
 }
 
 // formatAlertmanagerSingle форматирует один алерт
 func (h *Handler) formatAlertmanagerSingle(alert *domain.Alert, webhook *domain.AlertmanagerWebhook, config *domain.AlertmanagerConfig) string {
 	var builder strings.Builder
 
-	// Эмодзи для статуса
 	statusEmoji := "🔔"
 	if alert.Status == "resolved" {
 		statusEmoji = "✅"
 	}
 
-	// Эмодзи для severity
 	severity := alert.Labels["severity"]
 	if severity == "" {
 		severity = alert.Labels["level"]
@@ -118,9 +104,7 @@ func (h *Handler) formatAlertmanagerSingle(alert *domain.Alert, webhook *domain.
 		severityEmoji = "📢"
 	}
 
-	// Используем шаблон или дефолтное форматирование
-	if config.Template != "" {
-		// Заменяем переменные в шаблоне
+	if config != nil && config.Template != "" {
 		msg := config.Template
 		msg = strings.ReplaceAll(msg, "{status}", strings.ToUpper(alert.Status))
 		msg = strings.ReplaceAll(msg, "{severity}", severity)
@@ -133,7 +117,6 @@ func (h *Handler) formatAlertmanagerSingle(alert *domain.Alert, webhook *domain.
 		return msg
 	}
 
-	// Дефолтное форматирование
 	builder.WriteString(statusEmoji + " " + severityEmoji + " ")
 	builder.WriteString(fmt.Sprintf("*[%s]* ", strings.ToUpper(alert.Status)))
 
@@ -164,20 +147,18 @@ func (h *Handler) formatAlertmanagerSingle(alert *domain.Alert, webhook *domain.
 func (h *Handler) formatAlertmanagerGroup(webhook *domain.AlertmanagerWebhook, alerts []domain.Alert, config *domain.AlertmanagerConfig) string {
 	var builder strings.Builder
 
-	// Заголовок группы
 	statusEmoji := "🔔"
 	if webhook.Status == "resolved" {
 		statusEmoji = "✅"
 	}
 
-	groupLabels := formatLabels(webhook.GroupLabels)
+	groupLabels := h.formatLabels(webhook.GroupLabels)
 	builder.WriteString(fmt.Sprintf("%s *[%s] %s*\n",
 		statusEmoji,
 		strings.ToUpper(webhook.Status),
 		groupLabels,
 	))
 
-	// Каждый алерт с отступом
 	for i, alert := range alerts {
 		if i > 0 {
 			builder.WriteString("\n---\n")
@@ -215,8 +196,8 @@ func (h *Handler) formatAlertmanagerGroup(webhook *domain.AlertmanagerWebhook, a
 	return builder.String()
 }
 
-// Вспомогательная функция для форматирования меток
-func formatLabels(labels map[string]string) string {
+// formatLabels форматирует метки для отображения
+func (h *Handler) formatLabels(labels map[string]string) string {
 	parts := make([]string, 0, len(labels))
 	for k, v := range labels {
 		if k != "alertname" && k != "severity" {

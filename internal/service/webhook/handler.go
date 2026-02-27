@@ -102,3 +102,12 @@ func (h *Handler) readBody(r *http.Request) ([]byte, error) {
 	r.Body = io.NopCloser(bytes.NewBuffer(body))
 	return body, nil
 }
+
+// Вспомогательная функция для конвертации map в struct
+func mapToStruct(m map[string]interface{}, s interface{}) error {
+	jsonData, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(jsonData, s)
+}

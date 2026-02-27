@@ -5,10 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/lib/pq"
 
 	"yandex-messenger-bridge/internal/domain"
 	repoInterface "yandex-messenger-bridge/internal/repository/interface"
@@ -144,7 +142,6 @@ func (r *IntegrationRepository) FindByID(ctx context.Context, id string) (*domai
 		return nil, err
 	}
 
-	// Парсим JSON
 	if err := json.Unmarshal(destConfigJSON, &integration.DestinationConfig); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal destination config: %w", err)
 	}
@@ -247,7 +244,7 @@ func (r *IntegrationRepository) FindByUserID(ctx context.Context, userID string)
 	return integrations, nil
 }
 
-// FindAll находит все интеграции (для админа)
+// FindAll находит все интеграции
 func (r *IntegrationRepository) FindAll(ctx context.Context) ([]*domain.Integration, error) {
 	var integrations []*domain.Integration
 
@@ -318,12 +315,11 @@ func (r *IntegrationRepository) CreateDeliveryLog(ctx context.Context, log *doma
 	).Scan(&log.ID)
 }
 
-// GetDeliveryLogs получает логи доставки с пагинацией
+// GetDeliveryLogs получает логи доставки
 func (r *IntegrationRepository) GetDeliveryLogs(ctx context.Context, integrationID string, userID string, limit, offset int) ([]*domain.DeliveryLog, int, error) {
 	var logs []*domain.DeliveryLog
 	var total int
 
-	// Сначала проверяем, принадлежит ли интеграция пользователю
 	checkQuery := `SELECT COUNT(*) FROM integrations WHERE id = $1 AND user_id = $2`
 	var count int
 	err := r.db.GetContext(ctx, &count, checkQuery, integrationID, userID)
@@ -334,14 +330,12 @@ func (r *IntegrationRepository) GetDeliveryLogs(ctx context.Context, integration
 		return nil, 0, sql.ErrNoRows
 	}
 
-	// Получаем общее количество
 	totalQuery := `SELECT COUNT(*) FROM delivery_logs WHERE integration_id = $1`
 	err = r.db.GetContext(ctx, &total, totalQuery, integrationID)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// Получаем логи с пагинацией
 	query := `
         SELECT id, integration_id, source_event_id, request_payload, response_status, response_body, error, delivered_at, duration_ms
         FROM delivery_logs
@@ -378,7 +372,7 @@ func (r *IntegrationRepository) GetDeliveryLogs(ctx context.Context, integration
 	return logs, total, nil
 }
 
-// CreateUser создает нового пользователя
+// CreateUser создает пользователя
 func (r *IntegrationRepository) CreateUser(ctx context.Context, user *domain.User) error {
 	query := `
         INSERT INTO users (id, email, password_hash, role, created_at, updated_at)
@@ -429,7 +423,7 @@ func (r *IntegrationRepository) FindUserByID(ctx context.Context, id string) (*d
 	return &user, nil
 }
 
-// CreateAPIKey создает новый API ключ
+// CreateAPIKey создает API ключ
 func (r *IntegrationRepository) CreateAPIKey(ctx context.Context, key *domain.APIKey) error {
 	query := `
         INSERT INTO api_keys (id, user_id, key_hash, name, last_used_at, created_at, expires_at)
@@ -464,7 +458,7 @@ func (r *IntegrationRepository) FindAPIKeyByHash(ctx context.Context, hash strin
 	return &key, nil
 }
 
-// UpdateAPIKeyLastUsed обновляет время последнего использования ключа
+// UpdateAPIKeyLastUsed обновляет время использования ключа
 func (r *IntegrationRepository) UpdateAPIKeyLastUsed(ctx context.Context, id string) error {
 	query := `UPDATE api_keys SET last_used_at = NOW() WHERE id = $1`
 	_, err := r.db.ExecContext(ctx, query, id)
