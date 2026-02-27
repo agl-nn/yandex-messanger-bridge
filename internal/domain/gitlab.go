@@ -21,14 +21,6 @@ type Project struct {
 	PathWithNamespace string `json:"path_with_namespace"`
 }
 
-// User - пользователь GitLab
-type User struct {
-	ID       int    `json:"id"`
-	Name     string `json:"name"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-}
-
 // Commit - коммит GitLab
 type Commit struct {
 	ID      string `json:"id"`
@@ -50,6 +42,24 @@ type PushEvent struct {
 	After             string   `json:"after"`
 	Commits           []Commit `json:"commits"`
 	TotalCommitsCount int      `json:"total_commits_count"`
+}
+
+// MergeRequest - информация о merge request
+type MergeRequest struct {
+	ID    int    `json:"id"`
+	IID   int    `json:"iid"`
+	Title string `json:"title"`
+	URL   string `json:"url"`
+	State string `json:"state"`
+}
+
+// Issue - задача GitLab
+type Issue struct {
+	ID    int    `json:"id"`
+	IID   int    `json:"iid"`
+	Title string `json:"title"`
+	URL   string `json:"url"`
+	State string `json:"state"`
 }
 
 // MergeRequestEvent - событие merge request
@@ -84,11 +94,7 @@ type PipelineEvent struct {
 		Duration int      `json:"duration"`
 		URL      string   `json:"url"`
 	} `json:"object_attributes"`
-	MergeRequest *struct {
-		IID   int    `json:"iid"`
-		Title string `json:"title"`
-		URL   string `json:"url"`
-	} `json:"merge_request"`
+	MergeRequest *MergeRequest `json:"merge_request"`
 }
 
 // CommentEvent - событие комментария
@@ -105,21 +111,12 @@ type CommentEvent struct {
 	Commit       *Commit       `json:"commit"`
 }
 
-// Issue - задача GitLab
-type Issue struct {
-	ID    int    `json:"id"`
-	IID   int    `json:"iid"`
-	Title string `json:"title"`
-	URL   string `json:"url"`
-	State string `json:"state"`
-}
-
 // GitLabConfig - конфигурация для GitLab webhook
 type GitLabConfig struct {
-	SecretToken   string   `json:"secret_token"`   // Для проверки X-Gitlab-Token
-	Events        []string `json:"events"`         // Какие события обрабатывать
-	BranchFilter  string   `json:"branch_filter"`  // Фильтр по веткам (поддерживает *)
-	ProjectFilter []string `json:"project_filter"` // Фильтр по проектам
+	SecretToken   string   `json:"secret_token"`
+	Events        []string `json:"events"`
+	BranchFilter  string   `json:"branch_filter"`
+	ProjectFilter []string `json:"project_filter"`
 	Templates     struct {
 		Push         string `json:"push"`
 		MergeRequest string `json:"merge_request"`
