@@ -1,0 +1,143 @@
+package pages
+
+import (
+    "fmt"
+    "time"
+    "yandex-messenger-bridge/internal/domain"
+    "yandex-messenger-bridge/internal/web/templates"
+)
+
+templ LogsPage(logs []*domain.DeliveryLog, integrationID string, total, limit, offset int) {
+    @templates.Base("Логи доставки", nil) {
+        <div class="space-y-6">
+            <div class="flex items-center justify-between">
+                <h1 class="text-3xl font-bold text-gray-900">Логи доставки</h1>
+
+                <a href="/integrations" class="text-blue-600 hover:text-blue-800">
+                    ← Назад к интеграциям
+                </a>
+            </div>
+
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="px-6 py-4 border-b flex justify-between items-center">
+                    <h2 class="text-lg font-semibold">Интеграция: { integrationID }</h2>
+
+                    <div class="text-sm text-gray-500">
+                        Всего записей: { total }
+                    </div>
+                </div>
+
+                @LogsTable(logs)
+
+                @Pagination(total, limit, offset, integrationID)
+            </div>
+        </div>
+    }
+}
+
+templ LogsTable(logs []*domain.DeliveryLog) {
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Время</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Статус</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Длительность</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Событие</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ответ</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                for _, log := range logs {
+                    @LogRow(log)
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+templ LogRow(log *domain.DeliveryLog) {
+    <tr class="hover:bg-gray-50">
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            { log.DeliveredAt.Format("15:04:05 02.01.2006") }
+        </td>
+
+        <td class="px-6 py-4 whitespace-nowrap">
+            if log.ResponseStatus >= 200 && log.ResponseStatus < 300 {
+                <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                    ✓ Успешно
+                </span>
+            } else if log.Error != "" {
+                <span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">
+                    ✗ Ошибка
+                </span>
+            } else {
+                <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">
+                    ⚠ { log.ResponseStatus }
+                </span>
+            }
+        </td>
+
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            { log.DurationMS }ms
+        </td>
+
+        <td class="px-6 py-4">
+            <button class="text-blue-600 hover:text-blue-800 text-sm"
+                    onclick="showPayload('{ string(log.RequestPayload) }')">
+                Показать
+            </button>
+        </td>
+
+        <td class="px-6 py-4">
+            if log.ResponseBody != nil {
+                <button class="text-blue-600 hover:text-blue-800 text-sm"
+                        onclick="showPayload('{ string(log.ResponseBody) }')">
+                    Показать
+                </button>
+            } else {
+                <span class="text-gray-400">—</span>
+            }
+        </td>
+    </tr>
+}
+
+templ Pagination(total, limit, offset int, integrationID string) {
+    if total > limit {
+        <div class="px-6 py-4 border-t flex justify-between items-center">
+            <div class="text-sm text-gray-500">
+                Показано { offset + 1 } - { min(offset+limit, total) } из { total }
+            </div>
+
+            <div class="flex space-x-2">
+                if offset > 0 {
+                    <a href="/integrations/{ integrationID }/logs?offset={ max(0, offset-limit) }&limit={ limit }"
+                       class="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200">
+                        ← Назад
+                    </a>
+                }
+
+                if offset+limit < total {
+                    <a href="/integrations/{ integrationID }/logs?offset={ offset+limit }&limit={ limit }"
+                       class="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200">
+                        Вперед →
+                    </a>
+                }
+            </div>
+        </div>
+    }
+}
+
+func min(a, b int) int {
+    if a < b {
+        return a
+    }
+    return b
+}
+
+func max(a, b int) int {
+    if a > b {
+        return a
+    }
+    return b
+}

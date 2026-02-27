@@ -1,0 +1,109 @@
+package templates
+
+import (
+    "yandex-messenger-bridge/internal/domain"
+)
+
+templ Base(title string, user *domain.User) {
+    <!DOCTYPE html>
+    <html lang="ru">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>{ title } - Yandex Messenger Bridge</title>
+
+            <!-- HTMX -->
+            <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+            <!-- Tailwind CSS -->
+            <script src="https://cdn.tailwindcss.com"></script>
+
+            <!-- Кастомные стили -->
+            <link rel="stylesheet" href="/static/css/custom.css">
+
+            <!-- Иконки -->
+            <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+        </head>
+        <body class="bg-gray-50 min-h-screen flex flex-col">
+            <!-- Навигация -->
+            @Navbar(user)
+
+            <!-- Основной контент -->
+            <main class="flex-1 container mx-auto px-4 py-8">
+                { children }
+            </main>
+
+            <!-- Футер -->
+            @Footer()
+
+            <!-- Скрипты -->
+            <script src="/static/js/htmx.min.js"></script>
+        </body>
+    </html>
+}
+
+templ Navbar(user *domain.User) {
+    <nav class="bg-gray-800 text-white shadow-lg">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-6">
+                    <a href="/" class="flex items-center space-x-2">
+                        <span class="text-xl font-bold">📨 Yandex Bridge</span>
+                    </a>
+
+                    <div class="hidden md:flex space-x-4">
+                        <a href="/"
+                           class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
+                           Дашборд
+                        </a>
+                        <a href="/integrations"
+                           class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
+                           Интеграции
+                        </a>
+                    </div>
+                </div>
+
+                if user != nil {
+                    <div class="flex items-center space-x-4">
+                        <div class="text-sm text-right">
+                            <div class="font-medium">{ user.DisplayName }</div>
+                            <div class="text-gray-400 text-xs">{ user.Email }</div>
+                        </div>
+
+                        @RoleBadge(user.Role)
+
+                        <button hx-post="/logout"
+                                class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm transition">
+                            Выйти
+                        </button>
+                    </div>
+                } else {
+                    <a href="/login" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm">
+                        Войти
+                    </a>
+                }
+            </div>
+        </div>
+    </nav>
+}
+
+templ RoleBadge(role string) {
+    switch role {
+    case "admin":
+        <span class="bg-purple-600 text-xs px-2 py-1 rounded-full">Admin</span>
+    case "user":
+        <span class="bg-blue-600 text-xs px-2 py-1 rounded-full">User</span>
+    default:
+        <span class="bg-gray-600 text-xs px-2 py-1 rounded-full">Viewer</span>
+    }
+}
+
+templ Footer() {
+    <footer class="bg-white border-t mt-auto">
+        <div class="container mx-auto px-4 py-4">
+            <p class="text-center text-gray-500 text-sm">
+                © 2024 Yandex Messenger Bridge. Все права защищены.
+            </p>
+        </div>
+    </footer>
+}

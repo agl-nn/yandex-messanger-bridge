@@ -1,0 +1,88 @@
+package components
+
+templ SourceConfigGitLab(config map[string]interface{}) {
+    <div class="space-y-4 border-l-2 border-orange-200 pl-4">
+        <h4 class="font-medium text-sm text-gray-700">Настройки GitLab</h4>
+
+        <!-- Секретный токен -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Секретный токен (опционально)
+            </label>
+            <input type="password"
+                   name="source_config[secret_token]"
+                   value={ if config["secret_token"] != nil { config["secret_token"].(string) } }
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md">
+            <p class="text-xs text-gray-500">Будет проверяться в заголовке X-Gitlab-Token</p>
+        </div>
+
+        <!-- События -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">События</label>
+            <div class="grid grid-cols-2 gap-2">
+                <label class="flex items-center">
+                    <input type="checkbox" name="source_config[events][push]" value="true"
+                           { if config["events"] != nil && config["events"].(map[string]interface{})["push"] == true { checked } }>
+                    <span class="ml-2 text-sm">Push</span>
+                </label>
+                <label class="flex items-center">
+                    <input type="checkbox" name="source_config[events][merge_request]" value="true"
+                           { if config["events"] != nil && config["events"].(map[string]interface{})["merge_request"] == true { checked } }>
+                    <span class="ml-2 text-sm">Merge Request</span>
+                </label>
+                <label class="flex items-center">
+                    <input type="checkbox" name="source_config[events][issue]" value="true"
+                           { if config["events"] != nil && config["events"].(map[string]interface{})["issue"] == true { checked } }>
+                    <span class="ml-2 text-sm">Issues</span>
+                </label>
+                <label class="flex items-center">
+                    <input type="checkbox" name="source_config[events][pipeline]" value="true"
+                           { if config["events"] != nil && config["events"].(map[string]interface{})["pipeline"] == true { checked } }>
+                    <span class="ml-2 text-sm">Pipeline</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Фильтр по веткам -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Фильтр по веткам (push)
+            </label>
+            <input type="text"
+                   name="source_config[branch_filter]"
+                   value={ if config["branch_filter"] != nil { config["branch_filter"].(string) } }
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                   placeholder="main, develop, feature/*">
+            <p class="text-xs text-gray-500">Поддерживает * wildcard</p>
+        </div>
+
+        <!-- Фильтр по проектам -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Фильтр по проектам
+            </label>
+            <input type="text"
+                   name="source_config[project_filter]"
+                   value={ if config["project_filter"] != nil { config["project_filter"].(string) } }
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                   placeholder="namespace/project1, group/*">
+        </div>
+
+        <!-- Шаблоны для разных событий -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Шаблон для Push
+            </label>
+            <textarea name="source_config[templates][push]" rows="2"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm">{ if config["templates"] != nil && config["templates"].(map[string]interface{})["push"] != nil { config["templates"].(map[string]interface{})["push"].(string) } }</textarea>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Шаблон для Merge Request
+            </label>
+            <textarea name="source_config[templates][merge_request]" rows="2"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm">{ if config["templates"] != nil && config["templates"].(map[string]interface{})["merge_request"] != nil { config["templates"].(map[string]interface{})["merge_request"].(string) } }</textarea>
+        </div>
+    </div>
+}
