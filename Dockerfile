@@ -4,16 +4,27 @@ RUN apk add --no-cache git
 
 WORKDIR /app
 
-# Копируем только go.mod (go.sum может отсутствовать)
+# Копируем go.mod
 COPY go.mod ./
 
-# Инициализируем модули и создаем go.sum
-RUN go mod download && go mod tidy
+# Принудительно создаем go.sum и загружаем зависимости
+RUN go mod download && \
+    go mod verify && \
+    go list -m all > /dev/null
 
-# Копируем остальной код
+# Копируем весь исходный код
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/integrator ./cmd/integrator
+# Проверяем наличие go.sum перед сборкой
+RUN ls -la && \
+    echo "=== go.mod content ===" && \
+    cat go.mod && \
+    echo "=== go.sum content ===" && \
+    cat go.sum || echo "go.sum still empty"
+
+# Собираем с явным указанием модуля
+RUN go mod tidy && \
+    CGO_ENABLED=0 GOOS=linux go build -mod=readonly -o /app/bin/integrator ./cmd/integrator
 
 FROM alpine:latest
 
