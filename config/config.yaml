@@ -1,0 +1,30 @@
+
+env: production
+port: 8080
+base_url: http://localhost:8080
+
+database:
+  dsn: "postgres://integrator:secret@localhost:5432/integrator?sslmode=disable"
+  max_open_conns: 25
+  max_idle_conns: 10
+  conn_max_lifetime: 300
+
+auth:
+  jwt_secret: "your-32-byte-secret-key-change-in-production"
+  jwt_expiry: 24h
+  session_timeout: 72h
+
+encryption:
+  key: "32-byte-key-for-aes-256-encryption" # Изменить в production!
+
+webhook:
+  gitlab_timeout: 10s
+  alertmanager_timeout: 5s
+  jira_timeout: 10s
+  max_retries: 3
+  retry_backoff: 1s
+
+logging:
+  level: info
+  format: json
+  output: stdout
