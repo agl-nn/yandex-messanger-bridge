@@ -1,6 +1,8 @@
+// Путь: internal/transport/web/dashboard.go
 package web
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -12,13 +14,11 @@ import (
 func (h *Handler) Dashboard(c echo.Context) error {
 	userID := getUserIDFromContext(c)
 
-	// Получаем статистику
 	integrations, err := h.repo.FindByUserID(c.Request().Context(), userID)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "Failed to load data")
 	}
 
-	// Считаем статистику
 	activeCount := 0
 	for _, i := range integrations {
 		if i.IsActive {
@@ -29,8 +29,9 @@ func (h *Handler) Dashboard(c echo.Context) error {
 	stats := map[string]interface{}{
 		"total_integrations":  len(integrations),
 		"active_integrations": activeCount,
+		"today_deliveries":    0, // TODO: добавить реальную статистику
 		"recent_integrations": integrations,
 	}
 
-	return pages.Dashboard(stats).Render(c.Response().Writer)
+	return pages.Dashboard(stats, integrations).Render(c.Response().Writer)
 }

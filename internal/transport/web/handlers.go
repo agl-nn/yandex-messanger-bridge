@@ -1,8 +1,10 @@
+// Путь: internal/transport/web/handlers.go
 package web
 
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,8 +13,6 @@ import (
 
 	"yandex-messenger-bridge/internal/domain"
 	"yandex-messenger-bridge/internal/repository"
-	"yandex-messenger-bridge/internal/web/templates"
-	"yandex-messenger-bridge/internal/web/templates/pages"
 	"yandex-messenger-bridge/internal/web/templates/components"
 )
 
@@ -28,18 +28,8 @@ func NewHandler(repo repository.IntegrationRepository) *Handler {
 	}
 }
 
-// Dashboard отображает главную страницу
-func (h *Handler) Dashboard(c echo.Context) error {
-	userID := getUserIDFromContext(c)
-
-	integrations, err := h.repo.FindByUserID(c.Request().Context(), userID)
-	if err != nil {
-		return c.String(http.StatusInternalServerError, "Failed to load integrations")
-	}
-
-	return templates.Page("Дашборд").
-		Render(pages.Dashboard(integrations), c.Response().Writer)
-}
+// Dashboard - перенаправляем на отдельный файл
+// (метод будет в dashboard.go)
 
 // IntegrationsPage отображает страницу со списком интеграций
 func (h *Handler) IntegrationsPage(c echo.Context) error {
@@ -50,13 +40,12 @@ func (h *Handler) IntegrationsPage(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "Failed to load integrations")
 	}
 
-	// Добавляем webhook URL к каждой интеграции
 	baseURL := getBaseURL(c)
 	for i := range integrations {
 		integrations[i].WebhookURL = baseURL + "/webhook/" + integrations[i].ID
 	}
 
-	return components.IntegrationsTable(integrations).Render(c.Response().Writer)
+	return components.IntegrationsTable(integrations, baseURL).Render(c.Response().Writer)
 }
 
 // NewIntegrationForm отображает форму создания новой интеграции
@@ -70,14 +59,12 @@ func (h *Handler) NewIntegrationForm(c echo.Context) error {
 func (h *Handler) CreateIntegration(c echo.Context) error {
 	userID := getUserIDFromContext(c)
 
-	// Парсим форму
 	name := c.FormValue("name")
 	sourceType := c.FormValue("source_type")
 	chatID := c.FormValue("chat_id")
 	botToken := c.FormValue("bot_token")
 	isActive := c.FormValue("is_active") == "on"
 
-	// Парсим конфигурацию источника
 	sourceConfig, err := h.parseSourceConfig(c, sourceType)
 	if err != nil {
 		return c.String(http.StatusBadRequest, "Invalid source config: "+err.Error())
@@ -90,7 +77,7 @@ func (h *Handler) CreateIntegration(c echo.Context) error {
 		SourceConfig: sourceConfig,
 		DestinationConfig: domain.DestinationConfig{
 			ChatID:   chatID,
-			BotToken: botToken, // Будет зашифровано в API слое
+			BotToken: botToken,
 		},
 		IsActive: isActive,
 	}
@@ -99,7 +86,6 @@ func (h *Handler) CreateIntegration(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "Failed to create integration")
 	}
 
-	// Возвращаем обновленную таблицу
 	return h.IntegrationsPage(c)
 }
 
@@ -108,9 +94,13 @@ func (h *Handler) EditIntegrationForm(c echo.Context) error {
 	id := c.Param("id")
 	userID := getUserIDFromContext(c)
 
-	integration, err := h.repo.FindByIDAndUser(c.Request().Context(), id, userID)
+	integration, err := h.repo.FindByID(c.Request().Context(), id)
 	if err != nil {
 		return c.String(http.StatusNotFound, "Integration not found")
+	}
+
+	if integration.UserID != userID {
+		return c.String(http.StatusForbidden, "Access denied")
 	}
 
 	return components.IntegrationForm(integration, []string{
@@ -123,25 +113,25 @@ func (h *Handler) UpdateIntegration(c echo.Context) error {
 	id := c.Param("id")
 	userID := getUserIDFromContext(c)
 
-	// Загружаем существующую
-	existing, err := h.repo.FindByIDAndUser(c.Request().Context(), id, userID)
+	existing, err := h.repo.FindByID(c.Request().Context(), id)
 	if err != nil {
 		return c.String(http.StatusNotFound, "Integration not found")
 	}
 
-	// Обновляем поля
+	if existing.UserID != userID {
+		return c.String(http.StatusForbidden, "Access denied")
+	}
+
 	existing.Name = c.FormValue("name")
 	existing.SourceType = c.FormValue("source_type")
 	existing.IsActive = c.FormValue("is_active") == "on"
 
-	// Обновляем конфигурацию источника
 	sourceConfig, err := h.parseSourceConfig(c, existing.SourceType)
 	if err != nil {
 		return c.String(http.StatusBadRequest, "Invalid source config")
 	}
 	existing.SourceConfig = sourceConfig
 
-	// Обновляем назначение
 	existing.DestinationConfig.ChatID = c.FormValue("chat_id")
 	if token := c.FormValue("bot_token"); token != "" && token != "***" {
 		existing.DestinationConfig.BotToken = token
@@ -190,8 +180,16 @@ func (h *Handler) TestIntegration(c echo.Context) error {
 	id := c.Param("id")
 	userID := getUserIDFromContext(c)
 
-	// Тестовая отправка будет обработана API слоем
-	// Здесь просто возвращаем кнопку с результатом
+	integration, err := h.repo.FindByID(c.Request().Context(), id)
+	if err != nil {
+		return c.String(http.StatusNotFound, "Integration not found")
+	}
+
+	if integration.UserID != userID {
+		return c.String(http.StatusForbidden, "Access denied")
+	}
+
+	// Здесь будет логика тестирования
 	return c.HTML(http.StatusOK, `<div class="text-green-600">✓ Тест отправлен</div>`)
 }
 
@@ -200,9 +198,8 @@ func (h *Handler) SourceConfigFields(c echo.Context) error {
 	sourceType := c.QueryParam("source_type")
 	var config map[string]interface{}
 
-	// Пытаемся получить существующую конфигурацию
 	if id := c.QueryParam("id"); id != "" {
-		// Загружаем из БД
+		// Загружаем из БД если нужно
 	}
 
 	switch sourceType {
@@ -219,7 +216,6 @@ func (h *Handler) SourceConfigFields(c echo.Context) error {
 
 // Вспомогательные функции
 func getUserIDFromContext(c echo.Context) string {
-	// Получаем из JWT токена
 	return c.Get("user_id").(string)
 }
 
@@ -244,7 +240,15 @@ func (h *Handler) parseSourceConfig(c echo.Context, sourceType string) (map[stri
 		if c.FormValue("source_config[events][push]") == "on" {
 			events = append(events, "push")
 		}
-		// ... другие события
+		if c.FormValue("source_config[events][merge_request]") == "on" {
+			events = append(events, "merge_request")
+		}
+		if c.FormValue("source_config[events][issue]") == "on" {
+			events = append(events, "issue")
+		}
+		if c.FormValue("source_config[events][pipeline]") == "on" {
+			events = append(events, "pipeline")
+		}
 		config["events"] = events
 
 	case "alertmanager":
@@ -253,7 +257,6 @@ func (h *Handler) parseSourceConfig(c echo.Context, sourceType string) (map[stri
 		config["group_mode"] = c.FormValue("source_config[group_mode]")
 		config["template"] = c.FormValue("source_config[template]")
 
-		// Парсим фильтры меток
 		if filters := c.FormValue("source_config[label_filters]"); filters != "" {
 			var labelFilters map[string]string
 			if err := json.Unmarshal([]byte(filters), &labelFilters); err == nil {
