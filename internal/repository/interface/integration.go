@@ -1,3 +1,4 @@
+// Путь: internal/repository/interface/integration.go
 package _interface
 
 import (
@@ -12,7 +13,6 @@ type IntegrationRepository interface {
 	Update(ctx context.Context, integration *domain.Integration) error
 	Delete(ctx context.Context, id string, userID string) error
 	FindByID(ctx context.Context, id string) (*domain.Integration, error)
-	FindByIDAndUser(ctx context.Context, id string, userID string) (*domain.Integration, error)
 	FindByUserID(ctx context.Context, userID string) ([]*domain.Integration, error)
 	FindAll(ctx context.Context) ([]*domain.Integration, error)
 

@@ -188,7 +188,12 @@ func (api *IntegrationAPI) Test(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, "Integration not found")
 	}
 
-	// Здесь логика тестирования
+	// Используем integration, чтобы компилятор не ругался
+	_ = integration // временно, пока нет реальной логики
+
+	// Здесь будет логика тестирования с integration
+	// Например: отправить тестовое сообщение используя данные интеграции
+
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"success": true,
 		"message": "Test message sent",

@@ -188,118 +188,6 @@ func (h *Handler) retrySend(integration *domain.Integration, message string, att
 	}
 }
 
-// HandleGitLab обрабатывает вебхуки от GitLab
-func (h *Handler) HandleGitLab(w http.ResponseWriter, r *http.Request) {
-	integrationID := r.PathValue("id")
-
-	ctx, cancel := context.WithTimeout(r.Context(), h.config.GitLabTimeout)
-	defer cancel()
-	r = r.WithContext(ctx)
-
-	integration, err := h.getIntegrationByID(ctx, integrationID)
-	if err != nil {
-		log.Error().Err(err).Str("id", integrationID).Msg("Integration not found")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
-		return
-	}
-
-	body, err := h.readBody(r)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to read body")
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	gitlabConfig := &domain.GitLabConfig{}
-	if err := mapToStruct(integration.SourceConfig, gitlabConfig); err != nil {
-		log.Error().Err(err).Msg("Failed to parse GitLab config")
-	}
-
-	if gitlabConfig.SecretToken != "" {
-		providedToken := r.Header.Get("X-Gitlab-Token")
-		if providedToken != gitlabConfig.SecretToken {
-			log.Warn().Str("integration", integrationID).Msg("Invalid GitLab token")
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-	}
-
-	eventType := r.Header.Get("X-Gitlab-Event")
-
-	var message string
-	var event interface{}
-
-	switch eventType {
-	case "Push Hook":
-		var e domain.PushEvent
-		if err := json.Unmarshal(body, &e); err == nil {
-			event = e
-			if h.shouldProcessGitLabPush(&e, gitlabConfig) {
-				message = h.formatGitLabPush(&e, gitlabConfig)
-			}
-		}
-	case "Merge Request Hook":
-		var e domain.MergeRequestEvent
-		if err := json.Unmarshal(body, &e); err == nil {
-			event = e
-			if h.shouldProcessGitLabMR(&e, gitlabConfig) {
-				message = h.formatGitLabMergeRequest(&e, gitlabConfig)
-			}
-		}
-	case "Note Hook":
-		var e domain.CommentEvent
-		if err := json.Unmarshal(body, &e); err == nil {
-			event = e
-			if h.shouldProcessGitLabComment(&e, gitlabConfig) {
-				message = h.formatGitLabComment(&e, gitlabConfig)
-			}
-		}
-	case "Pipeline Hook":
-		var e domain.PipelineEvent
-		if err := json.Unmarshal(body, &e); err == nil {
-			event = e
-			if h.shouldProcessGitLabPipeline(&e, gitlabConfig) {
-				message = h.formatGitLabPipeline(&e, gitlabConfig)
-			}
-		}
-	}
-
-	if message != "" {
-		if err := h.sendToYandex(ctx, integration, message); err != nil {
-			log.Error().Err(err).Msg("Failed to send to Yandex")
-			go h.retrySend(integration, message, 0)
-		}
-	}
-
-	h.logDelivery(integrationID, event, err)
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"ok"}`))
-}
-
-// shouldProcessGitLabPush проверяет, нужно ли обрабатывать push
-func (h *Handler) shouldProcessGitLabPush(event *domain.PushEvent, config *domain.GitLabConfig) bool {
-	if len(config.Events) > 0 {
-		found := false
-		for _, e := range config.Events {
-			if e == "push" {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-
-	if config.BranchFilter != "" {
-		branch := strings.TrimPrefix(event.Ref, "refs/heads/")
-		return h.matchBranch(branch, config.BranchFilter)
-	}
-
-	return true
-}
-
 // shouldProcessGitLabMR проверяет, нужно ли обрабатывать merge request
 func (h *Handler) shouldProcessGitLabMR(event *domain.MergeRequestEvent, config *domain.GitLabConfig) bool {
 	if len(config.Events) > 0 {
@@ -476,4 +364,18 @@ func (h *Handler) matchBranch(branch, pattern string) bool {
 		}
 	}
 	return branch == pattern
+}
+
+// matchProject проверяет соответствие проекта фильтру
+func (h *Handler) matchProject(projectPath, pattern string) bool {
+	if pattern == "" || pattern == "*" {
+		return true
+	}
+	if strings.Contains(pattern, "*") {
+		parts := strings.Split(pattern, "*")
+		if len(parts) == 2 {
+			return strings.HasPrefix(projectPath, parts[0]) && strings.HasSuffix(projectPath, parts[1])
+		}
+	}
+	return projectPath == pattern
 }
