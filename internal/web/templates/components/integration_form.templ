@@ -1,5 +1,7 @@
 package components
-
+import (
+    "yandex-messenger-bridge/internal/domain"  // ЭТОТ ИМПОРТ НУЖЕН!
+)
 templ IntegrationForm(integration *domain.Integration, sourceTypes []string) {
     <div>
         <h3>Форма интеграции</h3>
