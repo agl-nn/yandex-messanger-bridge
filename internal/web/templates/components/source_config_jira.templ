@@ -5,27 +5,18 @@ templ SourceConfigJira(config map[string]interface{}) {
         <h4 class="font-medium text-sm text-gray-700">Настройки Jira</h4>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                Фильтр по проектам
-            </label>
-            <input type="text"
-                   name="source_config[project_keys]"
-                   value={ if config != nil { fmt.Sprint(config["project_keys"]) } else { "" } }
-                   class="w-full px-3 py-2 border border-gray-300 rounded-md"
-                   placeholder="PROJ, CORE, ..."/>
-            <p class="text-xs text-gray-500">Оставьте пустым для всех проектов</p>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Проекты</label>
+            <input type="text" name="source_config[project_keys]" class="w-full px-3 py-2 border border-gray-300 rounded-md"/>
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                Минимальный приоритет
-            </label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Приоритет</label>
             <select name="source_config[min_priority]" class="w-full px-3 py-2 border border-gray-300 rounded-md">
                 <option value="">Любой</option>
-                <option value="Highest" { if config != nil && config["min_priority"] == "Highest" { selected } }>Highest</option>
-                <option value="High" { if config != nil && config["min_priority"] == "High" { selected } }>High</option>
-                <option value="Medium" { if config != nil && config["min_priority"] == "Medium" { selected } }>Medium</option>
-                <option value="Low" { if config != nil && config["min_priority"] == "Low" { selected } }>Low</option>
+                <option value="Highest">Highest</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
             </select>
         </div>
 
@@ -33,38 +24,14 @@ templ SourceConfigJira(config map[string]interface{}) {
             <label class="block text-sm font-medium text-gray-700 mb-2">События</label>
             <div class="space-y-2">
                 <label class="flex items-center">
-                    <input type="checkbox"
-                           name="source_config[events][issue_created]"
-                           value="true"
-                           { if config != nil && config["events"] != nil && config["events"].(map[string]interface{})["issue_created"] == true { checked } }/>
+                    <input type="checkbox" name="source_config[events][issue_created]" value="true"/>
                     <span class="ml-2 text-sm">Создание задачи</span>
                 </label>
                 <label class="flex items-center">
-                    <input type="checkbox"
-                           name="source_config[events][issue_updated]"
-                           value="true"
-                           { if config != nil && config["events"] != nil && config["events"].(map[string]interface{})["issue_updated"] == true { checked } }/>
+                    <input type="checkbox" name="source_config[events][issue_updated]" value="true"/>
                     <span class="ml-2 text-sm">Обновление задачи</span>
                 </label>
-                <label class="flex items-center">
-                    <input type="checkbox"
-                           name="source_config[events][comment_created]"
-                           value="true"
-                           { if config != nil && config["events"] != nil && config["events"].(map[string]interface{})["comment_created"] == true { checked } }/>
-                    <span class="ml-2 text-sm">Новый комментарий</span>
-                </label>
             </div>
-        </div>
-
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                Шаблон сообщения
-            </label>
-            <textarea name="source_config[template]" rows="3"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm">{ if config != nil { fmt.Sprint(config["template"]) } else { "" } }</textarea>
-            <p class="text-xs text-gray-500 mt-1">
-                Доступные переменные: {issue.key}, {issue.summary}, {issue.priority}, {user}, {url}
-            </p>
         </div>
     </div>
 }

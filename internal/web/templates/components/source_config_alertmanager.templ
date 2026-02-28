@@ -5,55 +5,20 @@ templ SourceConfigAlertmanager(config map[string]interface{}) {
         <h4 class="font-medium text-sm text-gray-700">Настройки Alertmanager</h4>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                Минимальный уровень severity
-            </label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Минимальный severity</label>
             <select name="source_config[min_severity]" class="w-full px-3 py-2 border border-gray-300 rounded-md">
                 <option value="">Все</option>
-                <option value="critical" { if config != nil && config["min_severity"] == "critical" { selected } }>Critical</option>
-                <option value="warning" { if config != nil && config["min_severity"] == "warning" { selected } }>Warning</option>
-                <option value="info" { if config != nil && config["min_severity"] == "info" { selected } }>Info</option>
+                <option value="critical">Critical</option>
+                <option value="warning">Warning</option>
+                <option value="info">Info</option>
             </select>
-        </div>
-
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                Фильтр по меткам
-            </label>
-            <textarea name="source_config[label_filters]" rows="2"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm">{ if config != nil { fmt.Sprint(config["label_filters"]) } else { "" } }</textarea>
-            <p class="text-xs text-gray-500">JSON вида {"severity": "critical", "job": "kubernetes"}</p>
         </div>
 
         <div>
             <label class="flex items-center">
-                <input type="checkbox"
-                       name="source_config[send_resolved]"
-                       value="true"
-                       { if config != nil && config["send_resolved"] == true { checked } }/>
+                <input type="checkbox" name="source_config[send_resolved]" value="true"/>
                 <span class="ml-2 text-sm">Отправлять resolved-алерты</span>
             </label>
-        </div>
-
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                Группировка алертов
-            </label>
-            <select name="source_config[group_mode]" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                <option value="single" { if config != nil && config["group_mode"] == "single" { selected } }>Одно сообщение на алерт</option>
-                <option value="group" { if config != nil && config["group_mode"] == "group" { selected } }>Группировать по меткам</option>
-            </select>
-        </div>
-
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                Шаблон сообщения
-            </label>
-            <textarea name="source_config[template]" rows="4"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm">{ if config != nil { fmt.Sprint(config["template"]) } else { "" } }</textarea>
-            <p class="text-xs text-gray-500 mt-1">
-                Доступные переменные: {status}, {alerts_count}, {group_labels}, {severity}, {alertname}, {instance}, {description}
-            </p>
         </div>
     </div>
 }

@@ -2,18 +2,17 @@ FROM golang:1.23-alpine AS builder
 
 RUN apk add --no-cache git
 
-# Устанавливаем templ
-RUN go install github.com/a-h/templ/cmd/templ@latest
-
 WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download && go get github.com/a-h/templ  # Добавьте эту строку
 
 COPY . .
 
 # Генерируем Go код из templ шаблонов
-RUN templ generate
+RUN go run github.com/a-h/templ/cmd/templ generate
 
-RUN go mod tidy && \
-    go build -o integrator ./cmd/integrator
+RUN go build -o integrator ./cmd/integrator
 
 FROM alpine:latest
 
