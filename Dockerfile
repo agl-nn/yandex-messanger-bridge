@@ -4,41 +4,21 @@ RUN apk add --no-cache git
 
 WORKDIR /app
 
-# Копируем только go.mod
-COPY go.mod ./
-
-# Скачиваем все зависимости
-RUN go mod download && go mod tidy
-
-# Проверяем go.mod до добавления templ
-RUN echo "=== go.mod BEFORE adding templ ===" && cat go.mod
-
-# Добавляем templ в go.mod
-RUN go get github.com/a-h/templ
-
-# Проверяем go.mod после добавления templ
-RUN echo "=== go.mod AFTER adding templ ===" && cat go.mod
-
-# Устанавливаем templ как бинарник
-RUN go install github.com/a-h/templ/cmd/templ@latest
+# Копируем go.mod и go.sum
+COPY go.mod go.sum ./
+RUN go mod download
 
 # Копируем остальной код
 COPY . .
 
-# Еще раз обновляем зависимости
-RUN go mod tidy
-
-# Проверяем финальный go.mod
-RUN echo "=== go.mod FINAL ===" && cat go.mod
-
-# Проверяем, что templ виден в зависимостях
-RUN go list -m all | grep templ || echo "templ not found in modules!"
+# Устанавливаем templ
+RUN go install github.com/a-h/templ/cmd/templ@v0.3.1001
 
 # Генерируем шаблоны
 RUN templ generate
 
 # Собираем приложение
-RUN go build -o integrator ./cmd/integrator
+RUN CGO_ENABLED=0 GOOS=linux go build -o integrator ./cmd/integrator
 
 FROM alpine:latest
 
@@ -49,6 +29,7 @@ WORKDIR /app
 COPY --from=builder /app/integrator /app/
 COPY --from=builder /app/config /app/config
 COPY --from=builder /app/migrations /app/migrations
+COPY --from=builder /app/internal/web/static /app/internal/web/static
 
 EXPOSE 8080
 

@@ -1,34 +1,45 @@
-FROM golang:1.23-alpine AS builder
+version: '3.8'
 
-RUN apk add --no-cache git
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: integrator
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: integrator
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U integrator"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - bridge-network
 
-WORKDIR /app
-  
-  # Копируем ВЕСЬ код (включая go.mod с уже добавленным templ)
-COPY . .
-  
-  # Скачиваем все зависимости (templ уже в go.mod!)
-RUN go mod download
-  
-  # Устанавливаем templ как бинарник
-RUN go install github.com/a-h/templ/cmd/templ@latest
-  
-  # Генерируем шаблоны
-RUN templ generate
-  
-  # Собираем приложение
-RUN go build -o integrator ./cmd/integrator
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_DSN=postgres://integrator:secret@postgres:5432/integrator?sslmode=disable
+      - PORT=8080
+      - BASE_URL=http://localhost:8080
+      - JWT_SECRET=your-secret-key-change-in-production
+      - ENCRYPTION_KEY=32-byte-key-for-aes-256-encryption-change-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - bridge-network
 
-FROM alpine:latest
+volumes:
+  postgres_data:
 
-RUN apk --no-cache add ca-certificates
-
-WORKDIR /app
-
-COPY --from=builder /app/integrator /app/
-COPY --from=builder /app/config /app/config
-COPY --from=builder /app/migrations /app/migrations
-
-EXPOSE 8080
-
-CMD ["./integrator"]
+networks:
+  bridge-network:
+    driver: bridge
