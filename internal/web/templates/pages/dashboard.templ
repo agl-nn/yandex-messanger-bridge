@@ -1,6 +1,7 @@
 package pages
 
 import (
+    "fmt"  // добавьте этот импорт
     "yandex-messenger-bridge/internal/domain"
     "yandex-messenger-bridge/internal/web/templates"
 )
@@ -8,27 +9,22 @@ import (
 templ Dashboard(stats map[string]interface{}, integrations []*domain.Integration) {
     @templates.Base("Дашборд", nil) {
         <div class="space-y-6">
-            <!-- Заголовок -->
             <div class="flex justify-between items-center">
                 <h1 class="text-3xl font-bold text-gray-900">Дашборд</h1>
 
-                <a href="/integrations/new"
-                   class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition"
-                   hx-get="/integrations/new"
-                   hx-target="#modal-container"
-                   hx-trigger="click">
+                <button class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition"
+                        hx-get="/integrations/new"
+                        hx-target="#modal-container">
                     + Новая интеграция
-                </a>
+                </button>
             </div>
 
-            <!-- Статистика -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 @StatCard("Всего интеграций", fmt.Sprint(stats["total_integrations"]), "🔌")
                 @StatCard("Активных", fmt.Sprint(stats["active_integrations"]), "✅")
                 @StatCard("Доставлено сегодня", fmt.Sprint(stats["today_deliveries"]), "📨")
             </div>
 
-            <!-- Последние интеграции -->
             <div class="bg-white rounded-lg shadow overflow-hidden">
                 <div class="px-6 py-4 border-b">
                     <h2 class="text-xl font-semibold text-gray-800">Последние интеграции</h2>
@@ -44,16 +40,16 @@ templ Dashboard(stats map[string]interface{}, integrations []*domain.Integration
                     } else {
                         <div class="text-center py-12">
                             <p class="text-gray-500 mb-4">У вас пока нет интеграций</p>
-                            <a href="/integrations/new"
-                               class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                            <button class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                                    hx-get="/integrations/new"
+                                    hx-target="#modal-container">
                                 Создать первую интеграцию
-                            </a>
+                            </button>
                         </div>
                     }
                 </div>
             </div>
 
-            <!-- Контейнер для модальных окон -->
             <div id="modal-container"></div>
         </div>
     }
@@ -88,7 +84,11 @@ templ IntegrationCard(i *domain.Integration) {
             </div>
 
             <div class="flex items-center space-x-4">
-                @StatusBadge(i.IsActive)
+                if i.IsActive {
+                    <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Активна</span>
+                } else {
+                    <span class="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">Неактивна</span>
+                }
 
                 <a href="/integrations/{ i.ID }/edit"
                    class="text-blue-600 hover:text-blue-800"
@@ -108,14 +108,7 @@ templ IntegrationCard(i *domain.Integration) {
     </div>
 }
 
-templ StatusBadge(active bool) {
-    if active {
-        <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Активна</span>
-    } else {
-        <span class="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">Неактивна</span>
-    }
-}
-
+// Функция sourceIcon - ОСТАВЛЯЕМ ТОЛЬКО ЗДЕСЬ!
 func sourceIcon(source string) string {
     switch source {
     case "jira":

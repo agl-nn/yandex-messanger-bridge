@@ -1,7 +1,7 @@
 package pages
 
 import (
-    "fmt"
+    // Уберите "fmt" из импортов, если он есть
     "yandex-messenger-bridge/internal/domain"
     "yandex-messenger-bridge/internal/web/templates"
 )
@@ -83,7 +83,11 @@ templ IntegrationRow(i *domain.Integration, baseURL string) {
         </td>
 
         <td class="px-6 py-4 whitespace-nowrap">
-            @StatusBadge(i.IsActive)
+            if i.IsActive {
+                <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Активна</span>
+            } else {
+                <span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Неактивна</span>
+            }
         </td>
 
         <td class="px-6 py-4">
@@ -102,15 +106,11 @@ templ IntegrationRow(i *domain.Integration, baseURL string) {
         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
             <div class="flex space-x-3">
                 <a href="/integrations/{ i.ID }/logs"
-                   class="text-gray-600 hover:text-gray-900"
-                   hx-get="/integrations/{ i.ID }/logs"
-                   hx-target="#logs-modal"
-                   hx-trigger="click">
+                   class="text-gray-600 hover:text-gray-900">
                     📊
                 </a>
 
                 <button hx-post="/integrations/{ i.ID }/test"
-                        hx-target="#test-result"
                         class="text-green-600 hover:text-green-900">
                     🚀
                 </button>
@@ -123,7 +123,6 @@ templ IntegrationRow(i *domain.Integration, baseURL string) {
 
                 <button hx-delete="/integrations/{ i.ID }"
                         hx-confirm="Удалить интеграцию?"
-                        hx-target="#integrations-table"
                         class="text-red-600 hover:text-red-900">
                     🗑️
                 </button>
@@ -132,17 +131,4 @@ templ IntegrationRow(i *domain.Integration, baseURL string) {
     </tr>
 }
 
-func sourceIcon(source string) string {
-    switch source {
-    case "jira":
-        return "🎯"
-    case "gitlab":
-        return "🦊"
-    case "alertmanager":
-        return "🚨"
-    case "grafana":
-        return "📊"
-    default:
-        return "🔌"
-    }
-}
+// УДАЛИТЕ sourceIcon ИЗ ЭТОГО ФАЙЛА!

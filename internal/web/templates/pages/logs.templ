@@ -1,8 +1,7 @@
 package pages
 
 import (
-    "fmt"
-    "time"
+    // Уберите "fmt" и "time" из импортов
     "yandex-messenger-bridge/internal/domain"
     "yandex-messenger-bridge/internal/web/templates"
 )
@@ -48,8 +47,16 @@ templ LogsTable(logs []*domain.DeliveryLog) {
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-                for _, log := range logs {
-                    @LogRow(log)
+                if len(logs) == 0 {
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                            Логов пока нет
+                        </td>
+                    </tr>
+                } else {
+                    for _, log := range logs {
+                        @LogRow(log)
+                    }
                 }
             </tbody>
         </table>
@@ -84,7 +91,7 @@ templ LogRow(log *domain.DeliveryLog) {
 
         <td class="px-6 py-4">
             <button class="text-blue-600 hover:text-blue-800 text-sm"
-                    onclick="showPayload('{ string(log.RequestPayload) }')">
+                    onclick="alert(JSON.stringify({ log.RequestPayload }))">
                 Показать
             </button>
         </td>
@@ -92,7 +99,7 @@ templ LogRow(log *domain.DeliveryLog) {
         <td class="px-6 py-4">
             if log.ResponseBody != nil {
                 <button class="text-blue-600 hover:text-blue-800 text-sm"
-                        onclick="showPayload('{ string(log.ResponseBody) }')">
+                        onclick="alert(JSON.stringify({ log.ResponseBody }))">
                     Показать
                 </button>
             } else {
@@ -111,7 +118,7 @@ templ Pagination(total, limit, offset int, integrationID string) {
 
             <div class="flex space-x-2">
                 if offset > 0 {
-                    <a href="/integrations/{ integrationID }/logs?offset={ max(0, offset-limit) }&limit={ limit }"
+                    <a href="/integrations/{ integrationID }/logs?offset={ offset-limit }&limit={ limit }"
                        class="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200">
                         ← Назад
                     </a>
@@ -130,13 +137,6 @@ templ Pagination(total, limit, offset int, integrationID string) {
 
 func min(a, b int) int {
     if a < b {
-        return a
-    }
-    return b
-}
-
-func max(a, b int) int {
-    if a > b {
         return a
     }
     return b
