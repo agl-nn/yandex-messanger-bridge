@@ -1,21 +1,29 @@
-FROM golang:1.22-alpine
+FROM golang:1.22-alpine AS builder
 
 RUN apk add --no-cache git
 
+# Устанавливаем templ
+RUN go install github.com/a-h/templ/cmd/templ@latest
+
 WORKDIR /app
 
-# Копируем всё
 COPY . .
 
-# Включаем модули и прокси
-ENV GO111MODULE=on
-ENV GOPROXY=https://proxy.golang.org,direct
+# Генерируем Go код из templ шаблонов
+RUN templ generate
 
-# Сначала обновим зависимости и создадим go.sum
-RUN go mod tidy
+RUN go mod tidy && \
+    go build -o integrator ./cmd/integrator
 
-# Теперь собираем
-RUN go build -o integrator ./cmd/integrator
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /app
+
+COPY --from=builder /app/integrator /app/
+COPY --from=builder /app/config /app/config
+COPY --from=builder /app/migrations /app/migrations
 
 EXPOSE 8080
 
