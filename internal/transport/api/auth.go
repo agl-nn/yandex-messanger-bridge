@@ -8,7 +8,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
 
-	"yandex-messenger-bridge/internal/domain"
 	"yandex-messenger-bridge/internal/repository/interface"
 )
 
