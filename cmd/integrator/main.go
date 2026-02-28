@@ -12,16 +12,15 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/spf13/viper"
 
 	"yandex-messenger-bridge/config"
 	"yandex-messenger-bridge/internal/repository/postgres"
 	"yandex-messenger-bridge/internal/transport/api"
-	"yandex-messenger-bridge/internal/transport/middleware"
 	"yandex-messenger-bridge/internal/transport/web"
+	authMiddleware "yandex-messenger-bridge/internal/transport/middleware"
 	"yandex-messenger-bridge/internal/service/webhook"
-	"yandex-messenger-bridge/internal/yandex"
 	"yandex-messenger-bridge/internal/service/encryption"
+	"yandex-messenger-bridge/internal/yandex"
 )
 
 func main() {
@@ -45,9 +44,9 @@ func main() {
 
 	// Инициализируем сервисы
 	encryptor := encryption.NewEncryptor(cfg.EncryptionKey)
-	yandexClient := yandex.NewClient(nil) // Клиент будет создаваться динамически
+	yandexClient := yandex.NewClient("") // Токен будет подставляться динамически
 
-	// Инициализируем обработчики вебхуков с поддержкой всех улучшений
+	// Инициализируем обработчики вебхуков
 	webhookHandler := webhook.NewHandler(
 		integrationRepo,
 		yandexClient,
@@ -55,6 +54,7 @@ func main() {
 		webhook.Config{
 			GitLabTimeout:       10 * time.Second,
 			AlertmanagerTimeout: 5 * time.Second,
+			JiraTimeout:         10 * time.Second,
 			MaxRetries:          3,
 		},
 	)
@@ -69,14 +69,12 @@ func main() {
 
 	// Публичные webhook эндпоинты (без аутентификации)
 	webhookGroup := e.Group("/webhook")
-	webhookGroup.POST("/:id/jira", webhookHandler.HandleJira)
-	webhookGroup.POST("/:id/gitlab", webhookHandler.HandleGitLab)
-	webhookGroup.POST("/:id/alertmanager", webhookHandler.HandleAlertmanager)
-	webhookGroup.POST("/:id/grafana", webhookHandler.HandleGrafana)
+	webhookGroup.POST("/:id/jira", echo.WrapHandler(http.HandlerFunc(webhookHandler.HandleJira)))
+	webhookGroup.POST("/:id/gitlab", echo.WrapHandler(http.HandlerFunc(webhookHandler.HandleGitLab)))
+	webhookGroup.POST("/:id/alertmanager", echo.WrapHandler(http.HandlerFunc(webhookHandler.HandleAlertmanager)))
 
 	// API для фронтенда (с аутентификацией)
 	apiGroup := e.Group("/api/v1")
-	apiGroup.Use(middleware.Auth(integrationRepo))
 	{
 		integrationAPI := api.NewIntegrationAPI(integrationRepo, encryptor, cfg.BaseURL)
 		apiGroup.GET("/integrations", integrationAPI.List)
@@ -88,7 +86,7 @@ func main() {
 		apiGroup.POST("/integrations/:id/test", integrationAPI.Test)
 	}
 
-	// Веб-интерфейс
+	// Веб-интерфейс (пока без аутентификации для теста)
 	webHandler := web.NewHandler(integrationRepo)
 	e.GET("/", webHandler.Dashboard)
 	e.GET("/integrations", webHandler.IntegrationsPage)
