@@ -31,3 +31,7 @@ type IntegrationRepository interface {
 	UpdateAPIKeyLastUsed(ctx context.Context, id string) error
 	DeleteAPIKey(ctx context.Context, id string, userID string) error
 }
+type IntegrationRepository interface {
+	// ... существующие методы
+	FindByIDAndUser(ctx context.Context, id string, userID string) (*domain.Integration, error) // добавьте эту строку
+}

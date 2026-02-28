@@ -15,6 +15,7 @@ import (
 	"yandex-messenger-bridge/internal/repository/interface"
 	"yandex-messenger-bridge/internal/service/encryption"
 	"yandex-messenger-bridge/internal/yandex"
+	"bytes"
 )
 
 // Config - конфигурация вебхук обработчика

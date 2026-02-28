@@ -169,24 +169,24 @@ func matchBranch(branch, pattern string) bool {
 }
 
 // retrySend повторяет отправку с экспоненциальной задержкой (улучшение #4)
-func (h *Handler) retrySend(integration *domain.Integration, message string, attempt int) {
-	if attempt >= h.config.MaxRetries {
-		log.Error().Int("attempts", attempt).Msg("Max retries reached")
-		return
-	}
-
-	// Экспоненциальная задержка: 1s, 2s, 4s
-	delay := time.Duration(1<<uint(attempt)) * time.Second
-	time.Sleep(delay)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := h.sendToYandex(ctx, integration, message); err != nil {
-		log.Error().Err(err).Int("attempt", attempt+1).Msg("Retry failed")
-		h.retrySend(integration, message, attempt+1)
-	}
-}
+//func (h *Handler) retrySend(integration *domain.Integration, message string, attempt int) {
+//	if attempt >= h.config.MaxRetries {
+//		log.Error().Int("attempts", attempt).Msg("Max retries reached")
+//		return
+//	}
+//
+//	// Экспоненциальная задержка: 1s, 2s, 4s
+//	delay := time.Duration(1<<uint(attempt)) * time.Second
+//	time.Sleep(delay)
+//
+//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+//	defer cancel()
+//
+//	if err := h.sendToYandex(ctx, integration, message); err != nil {
+//		log.Error().Err(err).Int("attempt", attempt+1).Msg("Retry failed")
+//		h.retrySend(integration, message, attempt+1)
+//	}
+//}
 
 // shouldProcessGitLabMR проверяет, нужно ли обрабатывать merge request
 func (h *Handler) shouldProcessGitLabMR(event *domain.MergeRequestEvent, config *domain.GitLabConfig) bool {
@@ -367,6 +367,18 @@ func (h *Handler) matchBranch(branch, pattern string) bool {
 }
 
 // matchProject проверяет соответствие проекта фильтру
+func (h *Handler) matchProject(projectPath, pattern string) bool {
+	if pattern == "" || pattern == "*" {
+		return true
+	}
+	if strings.Contains(pattern, "*") {
+		parts := strings.Split(pattern, "*")
+		if len(parts) == 2 {
+			return strings.HasPrefix(projectPath, parts[0]) && strings.HasSuffix(projectPath, parts[1])
+		}
+	}
+	return projectPath == pattern
+}
 func (h *Handler) matchProject(projectPath, pattern string) bool {
 	if pattern == "" || pattern == "*" {
 		return true

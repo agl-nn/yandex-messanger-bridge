@@ -14,7 +14,6 @@ import (
 	"yandex-messenger-bridge/internal/domain"
 	"yandex-messenger-bridge/internal/repository"
 	"yandex-messenger-bridge/internal/web/templates/components"
-	"yandex-messenger-bridge/internal/web/templates/components"
 	"yandex-messenger-bridge/internal/web/templates/pages"
 )
 
