@@ -10,7 +10,10 @@ COPY go.mod ./
 # Скачиваем все зависимости
 RUN go mod download && go mod tidy
 
-# УСТАНАВЛИВАЕМ TEMPL КАК БИНАРНИК (не через go run)
+# Добавляем templ в go.mod
+RUN go get github.com/a-h/templ
+
+# Устанавливаем templ как бинарник
 RUN go install github.com/a-h/templ/cmd/templ@latest
 
 # Копируем остальной код
@@ -19,7 +22,7 @@ COPY . .
 # Еще раз обновляем зависимости
 RUN go mod tidy
 
-# Генерируем шаблоны через установленный бинарник
+# Генерируем шаблоны
 RUN templ generate
 
 # Собираем приложение
