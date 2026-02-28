@@ -7,20 +7,20 @@ WORKDIR /app
 # Копируем только go.mod
 COPY go.mod ./
 
-# Первичная загрузка зависимостей
-RUN go mod download
+# Скачиваем все зависимости
+RUN go mod download && go mod tidy
+
+# УСТАНАВЛИВАЕМ TEMPL КАК БИНАРНИК (не через go run)
+RUN go install github.com/a-h/templ/cmd/templ@latest
 
 # Копируем остальной код
 COPY . .
 
-# Полностью обновляем зависимости и создаем go.sum
+# Еще раз обновляем зависимости
 RUN go mod tidy
 
-# Устанавливаем templ в модуль
-RUN go get github.com/a-h/templ
-
-# Генерируем Go код из templ шаблонов
-RUN go run github.com/a-h/templ/cmd/templ generate
+# Генерируем шаблоны через установленный бинарник
+RUN templ generate
 
 # Собираем приложение
 RUN go build -o integrator ./cmd/integrator
