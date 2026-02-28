@@ -2,35 +2,42 @@ package api
 
 import (
 	"net/http"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
+	"golang.org/x/crypto/bcrypt"
 
 	"yandex-messenger-bridge/internal/domain"
 	"yandex-messenger-bridge/internal/repository/interface"
-	"yandex-messenger-bridge/internal/transport/middleware"
 )
 
-// AuthAPI - обработчик аутентификации
 type AuthAPI struct {
-	repo           _interface.IntegrationRepository
-	authMiddleware *middleware.AuthMiddleware
+	repo      _interface.IntegrationRepository
+	jwtSecret []byte
 }
 
-// NewAuthAPI создает новый API аутентификации
-func NewAuthAPI(repo _interface.IntegrationRepository, authMiddleware *middleware.AuthMiddleware) *AuthAPI {
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type LoginResponse struct {
+	Token string `json:"token"`
+	User  struct {
+		ID    string `json:"id"`
+		Email string `json:"email"`
+		Role  string `json:"role"`
+	} `json:"user"`
+}
+
+func NewAuthAPI(repo _interface.IntegrationRepository, jwtSecret string) *AuthAPI {
 	return &AuthAPI{
-		repo:           repo,
-		authMiddleware: authMiddleware,
+		repo:      repo,
+		jwtSecret: []byte(jwtSecret),
 	}
 }
 
-// LoginRequest - запрос на вход
-type LoginRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
-}
-
-// Login обрабатывает вход пользователя
 func (a *AuthAPI) Login(c echo.Context) error {
 	var req LoginRequest
 	if err := c.Bind(&req); err != nil {
@@ -44,64 +51,39 @@ func (a *AuthAPI) Login(c echo.Context) error {
 	}
 
 	// Проверяем пароль
-	if !middleware.CheckPassword(req.Password, user.PasswordHash) {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
 	}
 
 	// Генерируем JWT
-	token, err := a.authMiddleware.GenerateJWT(user.ID, user.Role)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": user.ID,
+		"role":    user.Role,
+		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+	})
+
+	tokenString, err := token.SignedString(a.jwtSecret)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to generate token"})
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"token": token,
-		"user": map[string]interface{}{
-			"id":    user.ID,
-			"email": user.Email,
-			"role":  user.Role,
+	// Формируем ответ
+	response := LoginResponse{
+		Token: tokenString,
+		User: struct {
+			ID    string `json:"id"`
+			Email string `json:"email"`
+			Role  string `json:"role"`
+		}{
+			ID:    user.ID,
+			Email: user.Email,
+			Role:  user.Role,
 		},
-	})
+	}
+
+	return c.JSON(http.StatusOK, response)
 }
 
-// RegisterRequest - запрос на регистрацию
-type RegisterRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=6"`
-}
-
-// Register регистрирует нового пользователя
-func (a *AuthAPI) Register(c echo.Context) error {
-	var req RegisterRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
-	}
-
-	// Хешируем пароль
-	hash, err := middleware.HashPassword(req.Password)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to hash password"})
-	}
-
-	// Создаем пользователя
-	user := &domain.User{
-		Email:        req.Email,
-		PasswordHash: hash,
-		Role:         "user",
-	}
-
-	if err := a.repo.CreateUser(c.Request().Context(), user); err != nil {
-		// Проверяем уникальность email
-		return c.JSON(http.StatusConflict, map[string]string{"error": "email already exists"})
-	}
-
-	return c.JSON(http.StatusCreated, map[string]interface{}{
-		"id":    user.ID,
-		"email": user.Email,
-	})
-}
-
-// Me возвращает информацию о текущем пользователе
 func (a *AuthAPI) Me(c echo.Context) error {
 	userID := c.Get("user_id").(string)
 
