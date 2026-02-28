@@ -4,9 +4,15 @@ RUN apk add --no-cache git
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
-RUN go mod download && go get github.com/a-h/templ  # Добавьте эту строку
+# Копируем только go.mod (go.sum пока нет)
+COPY go.mod ./
 
+# Скачиваем зависимости и создаем go.sum
+RUN go mod download && \
+    go mod tidy && \
+    go get github.com/a-h/templ
+
+# Теперь копируем остальной код
 COPY . .
 
 # Генерируем Go код из templ шаблонов
