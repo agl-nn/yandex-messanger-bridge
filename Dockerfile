@@ -4,20 +4,25 @@ RUN apk add --no-cache git
 
 WORKDIR /app
 
-# Копируем только go.mod (go.sum пока нет)
+# Копируем только go.mod
 COPY go.mod ./
 
-# Скачиваем зависимости и создаем go.sum
-RUN go mod download && \
-    go mod tidy && \
-    go get github.com/a-h/templ
+# Первичная загрузка зависимостей
+RUN go mod download
 
-# Теперь копируем остальной код
+# Копируем остальной код
 COPY . .
+
+# Полностью обновляем зависимости и создаем go.sum
+RUN go mod tidy
+
+# Устанавливаем templ в модуль
+RUN go get github.com/a-h/templ
 
 # Генерируем Go код из templ шаблонов
 RUN go run github.com/a-h/templ/cmd/templ generate
 
+# Собираем приложение
 RUN go build -o integrator ./cmd/integrator
 
 FROM alpine:latest
