@@ -12,18 +12,18 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"yandex-messenger-bridge/internal/domain"
-	"yandex-messenger-bridge/internal/repository"
+	repoInterface "yandex-messenger-bridge/internal/repository/interface"
 	"yandex-messenger-bridge/internal/web/templates/components"
 	"yandex-messenger-bridge/internal/web/templates/pages"
 )
 
 // Handler - обработчик веб-интерфейса
 type Handler struct {
-	repo repository.IntegrationRepository
+	repo repoInterface.IntegrationRepository // repoInterface
 }
 
 // NewHandler создает новый обработчик
-func NewHandler(repo repository.IntegrationRepository) *Handler {
+func NewHandler(repo repoInterface.IntegrationRepository) *Handler {
 	return &Handler{
 		repo: repo,
 	}
