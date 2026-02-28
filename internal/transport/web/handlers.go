@@ -198,7 +198,12 @@ func (h *Handler) SourceConfigFields(c echo.Context) error {
 
 // Вспомогательные функции
 func getUserIDFromContext(c echo.Context) string {
-	return c.Get("user_id").(string)
+	userID := c.Get("user_id")
+	if userID == nil {
+		// Вставьте сюда реальный UUID из базы
+		return "16724d39-1674-4b57-960e-cabf83ba5ca2" // замените на ваш UUID
+	}
+	return userID.(string)
 }
 
 func getBaseURL(c echo.Context) string {
