@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine AS builder
+FROM golang:1.23-alpine AS builder  # ИЗМЕНИЛИ ВЕРСИЮ НА 1.23
 
 RUN apk add --no-cache git
 
