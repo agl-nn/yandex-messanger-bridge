@@ -41,11 +41,11 @@ func (h *Handler) IntegrationsPage(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "Failed to load integrations")
 	}
 
-	// Приводим к нужному типу
-	integrations, ok := result.([]*domain.Integration)
-	if !ok {
-		return c.String(http.StatusInternalServerError, "Type assertion failed")
-	}
+	//// Приводим к нужному типу
+	//integrations, ok := result.([]*domain.Integration)
+	//if !ok {
+	//	return c.String(http.StatusInternalServerError, "Type assertion failed")
+	//}
 
 	baseURL := getBaseURL(c)
 	for i := range integrations {

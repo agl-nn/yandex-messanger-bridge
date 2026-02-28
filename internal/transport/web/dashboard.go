@@ -19,11 +19,11 @@ func (h *Handler) Dashboard(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "Failed to load data")
 	}
 
-	// Приводим к нужному типу
-	integrations, ok := result.([]*domain.Integration)
-	if !ok {
-		return c.String(http.StatusInternalServerError, "Type assertion failed")
-	}
+	//// Приводим к нужному типу
+	//integrations, ok := result.([]*domain.Integration)
+	//if !ok {
+	//	return c.String(http.StatusInternalServerError, "Type assertion failed")
+	//}
 
 	activeCount := 0
 	for _, i := range integrations {
@@ -39,5 +39,5 @@ func (h *Handler) Dashboard(c echo.Context) error {
 		"recent_integrations": integrations,
 	}
 
-	return pages.Dashboard(stats, integrations).Render(c.Response().Writer)
+	return pages.Dashboard(stats, integrations).Render(c.Request().Context(), c.Response().Writer)
 }

@@ -1,0 +1,38 @@
+package components
+
+import (
+    "yandex-messenger-bridge/internal/domain"
+)
+
+templ LogsTable(logs []*domain.DeliveryLog, total, limit, offset int) {
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Время</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Статус</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Длительность</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                for _, log := range logs {
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            { log.DeliveredAt.Format("15:04:05 02.01.2006") }
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            if log.ResponseStatus >= 200 && log.ResponseStatus < 300 {
+                                <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">✓</span>
+                            } else {
+                                <span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">✗</span>
+                            }
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            { log.DurationMS }ms
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
