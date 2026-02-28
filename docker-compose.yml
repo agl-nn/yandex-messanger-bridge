@@ -4,20 +4,17 @@ RUN apk add --no-cache git
 
 WORKDIR /app
   
-  # Копируем ВЕСЬ код сразу
+  # Копируем ВЕСЬ код (включая go.mod с уже добавленным templ)
 COPY . .
   
-  # Добавляем templ в go.mod (принудительно)
-RUN go get github.com/a-h/templ
+  # Скачиваем все зависимости (templ уже в go.mod!)
+RUN go mod download
   
-  # Устанавливаем templ
+  # Устанавливаем templ как бинарник
 RUN go install github.com/a-h/templ/cmd/templ@latest
   
-  # Генерируем шаблоны (теперь templ есть в go.mod)
+  # Генерируем шаблоны
 RUN templ generate
-  
-  # ТЕПЕРЬ делаем go mod tidy - после генерации, когда templ уже используется
-RUN go mod tidy
   
   # Собираем приложение
 RUN go build -o integrator ./cmd/integrator
