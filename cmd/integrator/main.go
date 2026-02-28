@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/http" // ЭТОТ ИМПОРТ НУЖЕН!
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,7 +18,6 @@ import (
 	"yandex-messenger-bridge/internal/repository/postgres"
 	"yandex-messenger-bridge/internal/transport/api"
 	"yandex-messenger-bridge/internal/transport/web"
-	authMiddleware "yandex-messenger-bridge/internal/transport/middleware"
 	"yandex-messenger-bridge/internal/service/webhook"
 	"yandex-messenger-bridge/internal/service/encryption"
 	"yandex-messenger-bridge/internal/yandex"
