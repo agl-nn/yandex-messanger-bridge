@@ -14,12 +14,11 @@ import (
 	"yandex-messenger-bridge/internal/domain"
 	repoInterface "yandex-messenger-bridge/internal/repository/interface"
 	"yandex-messenger-bridge/internal/web/templates/components"
-	"yandex-messenger-bridge/internal/web/templates/pages"
 )
 
 // Handler - обработчик веб-интерфейса
 type Handler struct {
-	repo repoInterface.IntegrationRepository // repoInterface
+	repo repoInterface.IntegrationRepository
 }
 
 // NewHandler создает новый обработчик
@@ -29,37 +28,28 @@ func NewHandler(repo repoInterface.IntegrationRepository) *Handler {
 	}
 }
 
-// Dashboard - перенаправляем на отдельный файл
-// (метод будет в dashboard.go)
-
 // IntegrationsPage отображает страницу со списком интеграций
 func (h *Handler) IntegrationsPage(c echo.Context) error {
 	userID := getUserIDFromContext(c)
 
-	result, err := h.repo.FindByUserID(c.Request().Context(), userID)
+	integrations, err := h.repo.FindByUserID(c.Request().Context(), userID)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "Failed to load integrations")
 	}
-
-	//// Приводим к нужному типу
-	//integrations, ok := result.([]*domain.Integration)
-	//if !ok {
-	//	return c.String(http.StatusInternalServerError, "Type assertion failed")
-	//}
 
 	baseURL := getBaseURL(c)
 	for i := range integrations {
 		integrations[i].WebhookURL = baseURL + "/webhook/" + integrations[i].ID
 	}
 
-	return components.IntegrationsTable(integrations, baseURL).Render(c.Response().Writer)
+	return components.IntegrationsTable(integrations, baseURL).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // NewIntegrationForm отображает форму создания новой интеграции
 func (h *Handler) NewIntegrationForm(c echo.Context) error {
 	return components.IntegrationForm(nil, []string{
 		"jira", "gitlab", "alertmanager", "grafana",
-	}).Render(c.Response().Writer)
+	}).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // CreateIntegration создает новую интеграцию
@@ -112,7 +102,7 @@ func (h *Handler) EditIntegrationForm(c echo.Context) error {
 
 	return components.IntegrationForm(integration, []string{
 		"jira", "gitlab", "alertmanager", "grafana",
-	}).Render(c.Response().Writer)
+	}).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // UpdateIntegration обновляет интеграцию
@@ -179,7 +169,7 @@ func (h *Handler) IntegrationLogs(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "Failed to load logs")
 	}
 
-	return components.LogsTable(logs, total, limit, offset).Render(c.Response().Writer)
+	return components.LogsTable(logs, total, limit, offset).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // TestIntegration отправляет тестовое сообщение
@@ -187,16 +177,11 @@ func (h *Handler) TestIntegration(c echo.Context) error {
 	id := c.Param("id")
 	userID := getUserIDFromContext(c)
 
-	integration, err := h.repo.FindByID(c.Request().Context(), id)
+	_, err := h.repo.FindByID(c.Request().Context(), id)
 	if err != nil {
 		return c.String(http.StatusNotFound, "Integration not found")
 	}
 
-	if integration.UserID != userID {
-		return c.String(http.StatusForbidden, "Access denied")
-	}
-
-	// Здесь будет логика тестирования
 	return c.HTML(http.StatusOK, `<div class="text-green-600">✓ Тест отправлен</div>`)
 }
 
@@ -205,17 +190,13 @@ func (h *Handler) SourceConfigFields(c echo.Context) error {
 	sourceType := c.QueryParam("source_type")
 	var config map[string]interface{}
 
-	if id := c.QueryParam("id"); id != "" {
-		// Загружаем из БД если нужно
-	}
-
 	switch sourceType {
 	case "jira":
-		return components.SourceConfigJira(config).Render(c.Response().Writer)
+		return components.SourceConfigJira(config).Render(c.Request().Context(), c.Response().Writer)
 	case "gitlab":
-		return components.SourceConfigGitLab(config).Render(c.Response().Writer)
+		return components.SourceConfigGitLab(config).Render(c.Request().Context(), c.Response().Writer)
 	case "alertmanager":
-		return components.SourceConfigAlertmanager(config).Render(c.Response().Writer)
+		return components.SourceConfigAlertmanager(config).Render(c.Request().Context(), c.Response().Writer)
 	default:
 		return c.String(http.StatusOK, "")
 	}
