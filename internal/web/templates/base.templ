@@ -8,35 +8,23 @@ templ Base(title string, user *domain.User) {
     <!DOCTYPE html>
     <html lang="ru">
         <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta charset="UTF-8"/>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
             <title>{ title } - Yandex Messenger Bridge</title>
 
-            <!-- HTMX -->
             <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-
-            <!-- Tailwind CSS -->
             <script src="https://cdn.tailwindcss.com"></script>
-
-            <!-- Кастомные стили -->
-            <link rel="stylesheet" href="/static/css/custom.css">
-
-            <!-- Иконки -->
-            <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+            <link rel="stylesheet" href="/static/css/custom.css"/>
         </head>
         <body class="bg-gray-50 min-h-screen flex flex-col">
-            <!-- Навигация -->
             @Navbar(user)
 
-            <!-- Основной контент -->
             <main class="flex-1 container mx-auto px-4 py-8">
-                { children }
+                { children... }
             </main>
 
-            <!-- Футер -->
             @Footer()
 
-            <!-- Скрипты -->
             <script src="/static/js/htmx.min.js"></script>
         </body>
     </html>
@@ -52,13 +40,11 @@ templ Navbar(user *domain.User) {
                     </a>
 
                     <div class="hidden md:flex space-x-4">
-                        <a href="/"
-                           class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
-                           Дашборд
+                        <a href="/" class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
+                            Дашборд
                         </a>
-                        <a href="/integrations"
-                           class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
-                           Интеграции
+                        <a href="/integrations" class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
+                            Интеграции
                         </a>
                     </div>
                 </div>
@@ -70,7 +56,9 @@ templ Navbar(user *domain.User) {
                             <div class="text-gray-400 text-xs">{ user.Email }</div>
                         </div>
 
-                        @RoleBadge(user.Role)
+                        if user.Role != "" {
+                            @RoleBadge(user.Role)
+                        }
 
                         <button hx-post="/logout"
                                 class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm transition">
