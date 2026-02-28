@@ -2,9 +2,7 @@
 package web
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -175,10 +173,7 @@ func (h *Handler) IntegrationLogs(c echo.Context) error {
 // TestIntegration отправляет тестовое сообщение
 func (h *Handler) TestIntegration(c echo.Context) error {
 	id := c.Param("id")
-	userID := getUserIDFromContext(c)
-
-	_, err := h.repo.FindByID(c.Request().Context(), id)
-	if err != nil {
+	if _, err := h.repo.FindByID(c.Request().Context(), id); err != nil {
 		return c.String(http.StatusNotFound, "Integration not found")
 	}
 
@@ -188,15 +183,14 @@ func (h *Handler) TestIntegration(c echo.Context) error {
 // SourceConfigFields возвращает поля конфигурации для выбранного источника
 func (h *Handler) SourceConfigFields(c echo.Context) error {
 	sourceType := c.QueryParam("source_type")
-	var config map[string]interface{}
 
 	switch sourceType {
 	case "jira":
-		return components.SourceConfigJira(config).Render(c.Request().Context(), c.Response().Writer)
+		return components.SourceConfigJira(nil).Render(c.Request().Context(), c.Response().Writer)
 	case "gitlab":
-		return components.SourceConfigGitLab(config).Render(c.Request().Context(), c.Response().Writer)
+		return components.SourceConfigGitLab(nil).Render(c.Request().Context(), c.Response().Writer)
 	case "alertmanager":
-		return components.SourceConfigAlertmanager(config).Render(c.Request().Context(), c.Response().Writer)
+		return components.SourceConfigAlertmanager(nil).Render(c.Request().Context(), c.Response().Writer)
 	default:
 		return c.String(http.StatusOK, "")
 	}
