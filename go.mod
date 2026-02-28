@@ -3,6 +3,7 @@ module yandex-messenger-bridge
 go 1.23
 
 require (
+	github.com/a-h/templ v0.3.1001
     github.com/golang-jwt/jwt/v5 v5.2.1
     github.com/jmoiron/sqlx v1.4.0
     github.com/labstack/echo/v4 v4.12.0
