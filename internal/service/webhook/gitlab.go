@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
+	//"time"
 
 	"github.com/rs/zerolog/log"
 
@@ -367,18 +367,6 @@ func (h *Handler) matchBranch(branch, pattern string) bool {
 }
 
 // matchProject проверяет соответствие проекта фильтру
-func (h *Handler) matchProject(projectPath, pattern string) bool {
-	if pattern == "" || pattern == "*" {
-		return true
-	}
-	if strings.Contains(pattern, "*") {
-		parts := strings.Split(pattern, "*")
-		if len(parts) == 2 {
-			return strings.HasPrefix(projectPath, parts[0]) && strings.HasSuffix(projectPath, parts[1])
-		}
-	}
-	return projectPath == pattern
-}
 func (h *Handler) matchProject(projectPath, pattern string) bool {
 	if pattern == "" || pattern == "*" {
 		return true

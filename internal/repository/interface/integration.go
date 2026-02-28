@@ -15,6 +15,7 @@ type IntegrationRepository interface {
 	FindByID(ctx context.Context, id string) (*domain.Integration, error)
 	FindByUserID(ctx context.Context, userID string) ([]*domain.Integration, error)
 	FindAll(ctx context.Context) ([]*domain.Integration, error)
+	FindByIDAndUser(ctx context.Context, id string, userID string) (*domain.Integration, error)
 
 	// Логи
 	CreateDeliveryLog(ctx context.Context, log *domain.DeliveryLog) error

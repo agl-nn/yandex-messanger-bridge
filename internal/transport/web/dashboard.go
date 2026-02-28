@@ -14,9 +14,15 @@ import (
 func (h *Handler) Dashboard(c echo.Context) error {
 	userID := getUserIDFromContext(c)
 
-	integrations, err := h.repo.FindByUserID(c.Request().Context(), userID)
+	result, err := h.repo.FindByUserID(c.Request().Context(), userID)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "Failed to load data")
+	}
+
+	// Приводим к нужному типу
+	integrations, ok := result.([]*domain.Integration)
+	if !ok {
+		return c.String(http.StatusInternalServerError, "Type assertion failed")
 	}
 
 	activeCount := 0
@@ -29,7 +35,7 @@ func (h *Handler) Dashboard(c echo.Context) error {
 	stats := map[string]interface{}{
 		"total_integrations":  len(integrations),
 		"active_integrations": activeCount,
-		"today_deliveries":    0, // TODO: добавить реальную статистику
+		"today_deliveries":    0,
 		"recent_integrations": integrations,
 	}
 

@@ -36,9 +36,15 @@ func NewHandler(repo repository.IntegrationRepository) *Handler {
 func (h *Handler) IntegrationsPage(c echo.Context) error {
 	userID := getUserIDFromContext(c)
 
-	integrations, err := h.repo.FindByUserID(c.Request().Context(), userID)
+	result, err := h.repo.FindByUserID(c.Request().Context(), userID)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "Failed to load integrations")
+	}
+
+	// Приводим к нужному типу
+	integrations, ok := result.([]*domain.Integration)
+	if !ok {
+		return c.String(http.StatusInternalServerError, "Type assertion failed")
 	}
 
 	baseURL := getBaseURL(c)
