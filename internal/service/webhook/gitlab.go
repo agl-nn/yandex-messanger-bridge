@@ -143,7 +143,7 @@ func (h *Handler) shouldProcessGitLabPush(event *domain.PushEvent, config *domai
 	// Фильтр по проектам
 	if len(config.ProjectFilter) > 0 {
 		for _, p := range config.ProjectFilter {
-			if matchProject(event.Project.PathWithNamespace, p) {
+			if h.matchProject(event.Project.PathWithNamespace, p) {
 				return true
 			}
 		}
