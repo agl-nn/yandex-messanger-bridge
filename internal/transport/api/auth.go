@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
 
 	"yandex-messenger-bridge/internal/repository/interface"
@@ -40,19 +41,29 @@ func NewAuthAPI(repo _interface.IntegrationRepository, jwtSecret string) *AuthAP
 func (a *AuthAPI) Login(c echo.Context) error {
 	var req LoginRequest
 	if err := c.Bind(&req); err != nil {
+		log.Error().Err(err).Msg("Failed to bind login request")
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
 	}
+
+	log.Info().Str("email", req.Email).Msg("Login attempt")
 
 	// Ищем пользователя
 	user, err := a.repo.FindUserByEmail(c.Request().Context(), req.Email)
 	if err != nil {
+		log.Error().Err(err).Str("email", req.Email).Msg("User not found")
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
 	}
 
+	log.Info().Str("user_id", user.ID).Str("email", user.Email).Msg("User found")
+
 	// Проверяем пароль
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
+	if err != nil {
+		log.Error().Err(err).Msg("Password mismatch")
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
 	}
+
+	log.Info().Msg("Password correct, generating token")
 
 	// Генерируем JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -63,6 +74,7 @@ func (a *AuthAPI) Login(c echo.Context) error {
 
 	tokenString, err := token.SignedString(a.jwtSecret)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to generate token")
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to generate token"})
 	}
 
@@ -80,6 +92,7 @@ func (a *AuthAPI) Login(c echo.Context) error {
 		},
 	}
 
+	log.Info().Str("user_id", user.ID).Msg("Login successful")
 	return c.JSON(http.StatusOK, response)
 }
 
