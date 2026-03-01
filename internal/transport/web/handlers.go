@@ -45,9 +45,7 @@ func (h *Handler) IntegrationsPage(c echo.Context) error {
 
 // NewIntegrationForm отображает форму создания новой интеграции
 func (h *Handler) NewIntegrationForm(c echo.Context) error {
-	return components.IntegrationForm(nil, []string{
-		"jira", "gitlab", "alertmanager", "grafana",
-	}).Render(c.Request().Context(), c.Response().Writer)
+	return components.IntegrationForm(nil).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // CreateIntegration создает новую интеграцию
@@ -98,9 +96,7 @@ func (h *Handler) EditIntegrationForm(c echo.Context) error {
 		return c.String(http.StatusForbidden, "Access denied")
 	}
 
-	return components.IntegrationForm(integration, []string{
-		"jira", "gitlab", "alertmanager", "grafana",
-	}).Render(c.Request().Context(), c.Response().Writer)
+	return components.IntegrationForm(integration).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // UpdateIntegration обновляет интеграцию
