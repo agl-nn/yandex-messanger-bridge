@@ -13,7 +13,7 @@ templ IntegrationForm(integration *domain.Integration) {
                 <form hx-post="/integrations"
                       hx-target="#integrations-table"
                       hx-swap="outerHTML"
-                      hx-on::after-request="if(event.detail.successful && event.detail.pathInfo.requestPath === '/integrations') document.getElementById('modal').remove()">
+                      hx-on::after-request="if(event.detail.successful &amp;&amp; event.detail.pathInfo.requestPath === '/integrations') document.getElementById('modal').remove()">
 
                     @HiddenID(integration)
 
