@@ -1,7 +1,7 @@
 package pages
 
 import (
-    "fmt"  // добавьте этот импорт
+    "fmt"
     "yandex-messenger-bridge/internal/domain"
     "yandex-messenger-bridge/internal/web/templates"
 )
@@ -108,7 +108,6 @@ templ IntegrationCard(i *domain.Integration) {
     </div>
 }
 
-// Функция sourceIcon - ОСТАВЛЯЕМ ТОЛЬКО ЗДЕСЬ!
 func sourceIcon(source string) string {
     switch source {
     case "jira":
