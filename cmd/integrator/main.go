@@ -111,7 +111,7 @@ func main() {
 		webGroup.DELETE("/integrations/:id", webHandler.DeleteIntegration)
 		webGroup.GET("/integrations/:id/logs", webHandler.IntegrationLogs)
 		webGroup.POST("/integrations/:id/test", webHandler.TestIntegration)
-		webGroup.GET("/integrations/source-config-fields", webHandler.SourceConfigFields)
+		//webGroup.GET("/integrations/source-config-fields", webHandler.SourceConfigFields)
 	}
 
 	// Статические файлы
