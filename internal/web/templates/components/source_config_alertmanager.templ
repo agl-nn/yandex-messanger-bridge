@@ -5,7 +5,9 @@ templ SourceConfigAlertmanager(config map[string]interface{}) {
         <h4 class="font-medium text-sm text-gray-700">Настройки Alertmanager</h4>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Минимальный severity</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Минимальный уровень severity
+            </label>
             <select name="source_config[min_severity]" class="w-full px-3 py-2 border border-gray-300 rounded-md">
                 <option value="">Все</option>
                 <option value="critical">Critical</option>
@@ -19,6 +21,16 @@ templ SourceConfigAlertmanager(config map[string]interface{}) {
                 <input type="checkbox" name="source_config[send_resolved]" value="true"/>
                 <span class="ml-2 text-sm">Отправлять resolved-алерты</span>
             </label>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Группировка алертов
+            </label>
+            <select name="source_config[group_mode]" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                <option value="single">Одно сообщение на алерт</option>
+                <option value="group">Группировать по меткам</option>
+            </select>
         </div>
     </div>
 }
