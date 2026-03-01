@@ -12,6 +12,7 @@ import (
 	"yandex-messenger-bridge/internal/domain"
 	repoInterface "yandex-messenger-bridge/internal/repository/interface"
 	"yandex-messenger-bridge/internal/web/templates/components"
+	"yandex-messenger-bridge/internal/web/templates/pages"
 )
 
 // Handler - обработчик веб-интерфейса
