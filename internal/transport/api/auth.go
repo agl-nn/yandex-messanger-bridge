@@ -47,7 +47,6 @@ func (a *AuthAPI) Login(c echo.Context) error {
 
 	log.Info().Str("email", req.Email).Msg("Login attempt")
 
-	// Ищем пользователя
 	user, err := a.repo.FindUserByEmail(c.Request().Context(), req.Email)
 	if err != nil {
 		log.Error().Err(err).Str("email", req.Email).Msg("User not found")
@@ -56,7 +55,6 @@ func (a *AuthAPI) Login(c echo.Context) error {
 
 	log.Info().Str("user_id", user.ID).Str("email", user.Email).Msg("User found")
 
-	// Проверяем пароль
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
 	if err != nil {
 		log.Error().Err(err).Msg("Password mismatch")
@@ -65,7 +63,6 @@ func (a *AuthAPI) Login(c echo.Context) error {
 
 	log.Info().Msg("Password correct, generating token")
 
-	// Генерируем JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": user.ID,
 		"role":    user.Role,
@@ -78,7 +75,16 @@ func (a *AuthAPI) Login(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to generate token"})
 	}
 
-	// Формируем ответ
+	// Устанавливаем cookie (ЭТО ГЛАВНОЕ ИЗМЕНЕНИЕ)
+	c.SetCookie(&http.Cookie{
+		Name:     "token",
+		Value:    tokenString,
+		Path:     "/",
+		Expires:  time.Now().Add(24 * time.Hour),
+		HttpOnly: true, // Защита от XSS
+		SameSite: http.SameSiteLaxMode,
+	})
+
 	response := LoginResponse{
 		Token: tokenString,
 		User: struct {

@@ -18,6 +18,7 @@ func NewAuthMiddleware(jwtSecret string) *AuthMiddleware {
 	}
 }
 
+// Проверка токена из заголовка (для API)
 func (m *AuthMiddleware) RequireAuth(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		token := extractToken(c.Request())
@@ -34,6 +35,35 @@ func (m *AuthMiddleware) RequireAuth(next echo.HandlerFunc) echo.HandlerFunc {
 		c.Set("user_role", claims["role"])
 
 		return next(c)
+	}
+}
+
+// НОВЫЙ МЕТОД: Проверка токена из cookie (для веб-интерфейса)
+func (m *AuthMiddleware) CookieAuth(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		// Сначала проверяем заголовок (для API)
+		token := extractToken(c.Request())
+		if token != "" {
+			claims, err := m.validateJWT(token)
+			if err == nil {
+				c.Set("user_id", claims["user_id"])
+				c.Set("user_role", claims["role"])
+				return next(c)
+			}
+		}
+
+		// Если нет токена в заголовке, проверяем cookie
+		cookie, err := c.Cookie("token")
+		if err == nil {
+			claims, err := m.validateJWT(cookie.Value)
+			if err == nil {
+				c.Set("user_id", claims["user_id"])
+				c.Set("user_role", claims["role"])
+				return next(c)
+			}
+		}
+
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "missing token"})
 	}
 }
 

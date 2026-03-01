@@ -76,7 +76,7 @@ func main() {
 	// Защищенные API эндпоинты
 	authMw := authMiddleware.NewAuthMiddleware(cfg.JWTSecret)
 	apiGroup := e.Group("/api/v1")
-	apiGroup.Use(authMw.RequireAuth)
+	webGroup.Use(authMw.CookieAuth)
 	{
 		integrationAPI := api.NewIntegrationAPI(integrationRepo, encryptor, cfg.BaseURL)
 		apiGroup.GET("/integrations", integrationAPI.List)
