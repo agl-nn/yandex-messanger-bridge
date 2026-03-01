@@ -69,6 +69,10 @@ func main() {
 	authAPI := api.NewAuthAPI(integrationRepo, cfg.JWTSecret)
 	e.POST("/api/v1/login", authAPI.Login)
 
+	// Публичные веб-эндпоинты (для отображения страницы логина)
+	webHandler := web.NewHandler(integrationRepo)
+	e.GET("/login", webHandler.LoginPage)
+
 	// Защищенные API эндпоинты
 	authMw := authMiddleware.NewAuthMiddleware(cfg.JWTSecret)
 	apiGroup := e.Group("/api/v1")

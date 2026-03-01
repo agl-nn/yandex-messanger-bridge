@@ -24,6 +24,44 @@ templ Base(title string, user *domain.User) {
             </main>
 
             @Footer()
+
+            <script>
+                // Добавляем токен ко всем HTMX запросам
+                document.body.addEventListener('htmx:configRequest', function(evt) {
+                    const token = localStorage.getItem('token');
+                    if (token) {
+                        evt.detail.headers['Authorization'] = 'Bearer ' + token;
+                    }
+                });
+
+                // Проверяем авторизацию при загрузке
+                if (!localStorage.getItem('token') && window.location.pathname !== '/login') {
+                    window.location.href = '/login';
+                }
+
+                // Обработка ответа от логина
+                document.body.addEventListener('htmx:afterRequest', function(evt) {
+                    if (evt.detail.successful && evt.detail.pathInfo.requestPath === '/api/v1/login') {
+                        try {
+                            const response = JSON.parse(evt.detail.xhr.response);
+                            if (response.token) {
+                                localStorage.setItem('token', response.token);
+                                window.location.href = '/';
+                            }
+                        } catch (e) {
+                            console.error('Failed to parse login response', e);
+                        }
+                    }
+                });
+
+                // Обработка выхода
+                document.body.addEventListener('htmx:afterRequest', function(evt) {
+                    if (evt.detail.successful && evt.detail.pathInfo.requestPath === '/logout') {
+                        localStorage.removeItem('token');
+                        window.location.href = '/login';
+                    }
+                });
+            </script>
         </body>
     </html>
 }
@@ -88,7 +126,7 @@ templ Footer() {
     <footer class="bg-white border-t mt-auto">
         <div class="container mx-auto px-4 py-4">
             <p class="text-center text-gray-500 text-sm">
-                © 2024 Yandex Messenger Bridge. Все права защищены.
+                © 2026 Yandex Messenger Bridge. Все права защищены.
             </p>
         </div>
     </footer>
