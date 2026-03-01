@@ -90,7 +90,7 @@ func main() {
 	}
 
 	// Защищенные веб-эндпоинты
-	webHandler := web.NewHandler(integrationRepo)
+	//webHandler := web.NewHandler(integrationRepo)
 	webGroup := e.Group("")
 	webGroup.Use(authMw.RequireAuth)
 	{
