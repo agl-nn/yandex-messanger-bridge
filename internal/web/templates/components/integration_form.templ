@@ -1,10 +1,16 @@
 package components
 
+import (
+    "yandex-messenger-bridge/internal/domain"
+)
+
 templ IntegrationForm(integration *domain.Integration) {
     <div>
-        <h3>
-            { if integration != nil { "Редактирование" } else { "Создание" } } интеграции
-        </h3>
+        if integration != nil {
+            <h3>Редактирование интеграции</h3>
+        } else {
+            <h3>Создание интеграции</h3>
+        }
         <p>Тестовый шаблон</p>
     </div>
 }
