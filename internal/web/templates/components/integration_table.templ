@@ -27,37 +27,54 @@ templ IntegrationsTable(integrations []*domain.Integration, baseURL string) {
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-                for _, i := range integrations {
+                if len(integrations) == 0 {
                     <tr>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900">{ i.Name }</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                { i.SourceType }
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            if i.IsActive {
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Активна
-                                </span>
-                            } else {
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                    Неактивна
-                                </span>
-                            }
-                        </td>
-                        <td class="px-6 py-4">
-                            <code class="text-xs bg-gray-100 px-2 py-1 rounded">
-                                { baseURL }/webhook/{ i.ID }
-                            </code>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button class="text-indigo-600 hover:text-indigo-900 mr-3">Редактировать</button>
-                            <button class="text-red-600 hover:text-red-900">Удалить</button>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                            Нет интеграций. Создайте первую!
                         </td>
                     </tr>
+                } else {
+                    for _, i := range integrations {
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900">{ i.Name }</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                    { i.SourceType }
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                if i.IsActive {
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        Активна
+                                    </span>
+                                } else {
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                        Неактивна
+                                    </span>
+                                }
+                            </td>
+                            <td class="px-6 py-4">
+                                <code class="text-xs bg-gray-100 px-2 py-1 rounded">
+                                    { baseURL }/webhook/{ i.ID }
+                                </code>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button class="text-indigo-600 hover:text-indigo-900 mr-3"
+                                        hx-get="/integrations/{ i.ID }/edit"
+                                        hx-target="#modal-container">
+                                    Редактировать
+                                </button>
+                                <button class="text-red-600 hover:text-red-900"
+                                        hx-delete="/integrations/{ i.ID }"
+                                        hx-confirm="Удалить интеграцию?"
+                                        hx-target="#integrations-container">
+                                    Удалить
+                                </button>
+                            </td>
+                        </tr>
+                    }
                 }
             </tbody>
         </table>
