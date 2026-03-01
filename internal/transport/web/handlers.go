@@ -53,9 +53,7 @@ func (h *Handler) IntegrationsPage(c echo.Context) error {
 
 // NewIntegrationForm отображает форму создания новой интеграции
 func (h *Handler) NewIntegrationForm(c echo.Context) error {
-	return components.IntegrationForm(nil, []string{
-		"jira", "gitlab", "alertmanager", "grafana",
-	}).Render(c.Request().Context(), c.Response().Writer)
+	return components.IntegrationForm(nil).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // CreateIntegration создает новую интеграцию
@@ -76,11 +74,8 @@ func (h *Handler) CreateIntegration(c echo.Context) error {
 		Bool("is_active", isActive).
 		Msg("Form values")
 
-	sourceConfig, err := h.parseSourceConfig(c, sourceType)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to parse source config")
-		return c.String(http.StatusBadRequest, "Invalid source config: "+err.Error())
-	}
+	// Упрощенная конфигурация (пустая)
+	sourceConfig := make(map[string]interface{})
 
 	integration := &domain.Integration{
 		UserID:       userID,
@@ -119,9 +114,7 @@ func (h *Handler) EditIntegrationForm(c echo.Context) error {
 		return c.String(http.StatusForbidden, "Access denied")
 	}
 
-	return components.IntegrationForm(integration, []string{
-		"jira", "gitlab", "alertmanager", "grafana",
-	}).Render(c.Request().Context(), c.Response().Writer)
+	return components.IntegrationForm(integration).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // UpdateIntegration обновляет интеграцию
@@ -142,11 +135,8 @@ func (h *Handler) UpdateIntegration(c echo.Context) error {
 	existing.SourceType = c.FormValue("source_type")
 	existing.IsActive = c.FormValue("is_active") == "on"
 
-	sourceConfig, err := h.parseSourceConfig(c, existing.SourceType)
-	if err != nil {
-		return c.String(http.StatusBadRequest, "Invalid source config")
-	}
-	existing.SourceConfig = sourceConfig
+	// Конфигурация остается пустой
+	existing.SourceConfig = make(map[string]interface{})
 
 	existing.DestinationConfig.ChatID = c.FormValue("chat_id")
 	if token := c.FormValue("bot_token"); token != "" && token != "***" {
@@ -206,21 +196,7 @@ func (h *Handler) TestIntegration(c echo.Context) error {
 	return c.HTML(http.StatusOK, `<div class="text-green-600">✓ Тест отправлен</div>`)
 }
 
-// SourceConfigFields возвращает поля конфигурации для выбранного источника
-func (h *Handler) SourceConfigFields(c echo.Context) error {
-	sourceType := c.QueryParam("source_type")
-
-	switch sourceType {
-	case "jira":
-		return components.SourceConfigJira(nil).Render(c.Request().Context(), c.Response().Writer)
-	case "gitlab":
-		return components.SourceConfigGitLab(nil).Render(c.Request().Context(), c.Response().Writer)
-	case "alertmanager":
-		return components.SourceConfigAlertmanager(nil).Render(c.Request().Context(), c.Response().Writer)
-	default:
-		return c.String(http.StatusOK, "")
-	}
-}
+// SourceConfigFields удален - больше не нужен
 
 // Вспомогательные функции
 func getUserIDFromContext(c echo.Context) string {
@@ -239,43 +215,7 @@ func getBaseURL(c echo.Context) string {
 	return scheme + "://" + c.Request().Host
 }
 
+// parseSourceConfig упрощен - возвращает пустую конфигурацию
 func (h *Handler) parseSourceConfig(c echo.Context, sourceType string) (map[string]interface{}, error) {
-	config := make(map[string]interface{})
-
-	switch sourceType {
-	case "gitlab":
-		config["secret_token"] = c.FormValue("source_config[secret_token]")
-		config["branch_filter"] = c.FormValue("source_config[branch_filter]")
-		config["project_filter"] = strings.Split(c.FormValue("source_config[project_filter]"), ",")
-
-		events := make([]string, 0)
-		if c.FormValue("source_config[events][push]") == "on" {
-			events = append(events, "push")
-		}
-		if c.FormValue("source_config[events][merge_request]") == "on" {
-			events = append(events, "merge_request")
-		}
-		if c.FormValue("source_config[events][issue]") == "on" {
-			events = append(events, "issue")
-		}
-		if c.FormValue("source_config[events][pipeline]") == "on" {
-			events = append(events, "pipeline")
-		}
-		config["events"] = events
-
-	case "alertmanager":
-		config["min_severity"] = c.FormValue("source_config[min_severity]")
-		config["send_resolved"] = c.FormValue("source_config[send_resolved]") == "on"
-		config["group_mode"] = c.FormValue("source_config[group_mode]")
-		config["template"] = c.FormValue("source_config[template]")
-
-		if filters := c.FormValue("source_config[label_filters]"); filters != "" {
-			var labelFilters map[string]string
-			if err := json.Unmarshal([]byte(filters), &labelFilters); err == nil {
-				config["label_filters"] = labelFilters
-			}
-		}
-	}
-
-	return config, nil
+	return make(map[string]interface{}), nil
 }
