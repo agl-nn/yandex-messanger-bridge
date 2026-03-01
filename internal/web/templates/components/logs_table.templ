@@ -1,79 +1,104 @@
 package components
 
 import (
-    "yandex-messenger-bridge/internal/web/templates"
+    "yandex-messenger-bridge/internal/domain"
 )
 
-templ LoginPage() {
-    @templates.Base("Вход", nil) {
-        <div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <div class="max-w-md w-full space-y-8">
-                <div>
-                    <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                        Вход в систему
-                    </h2>
-                </div>
-
-                <div id="error-message" class="text-red-600 text-center hidden"></div>
-
-                <form class="mt-8 space-y-6" id="loginForm">
-                    <div class="rounded-md shadow-sm -space-y-px">
-                        <div>
-                            <input id="email" name="email" type="email" required
-                                   class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                                   placeholder="Email">
-                        </div>
-                        <div>
-                            <input id="password" name="password" type="password" required
-                                   class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                                   placeholder="Пароль">
-                        </div>
-                    </div>
-
-                    <div>
-                        <button type="submit"
-                                class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                            Войти
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <script>
-            document.getElementById('loginForm').addEventListener('submit', async function(e) {
-                e.preventDefault();
-
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
-
-                try {
-                    const response = await fetch('/api/v1/login', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ email, password })
-                    });
-
-                    const data = await response.json();
-
-                    if (response.ok && data.token) {
-                        // Cookie установится автоматически сервером
-                        console.log('Login successful, redirecting...');
-                        window.location.href = '/';
-                    } else {
-                        const errorDiv = document.getElementById('error-message');
-                        errorDiv.textContent = 'Неверный email или пароль';
-                        errorDiv.classList.remove('hidden');
+templ LogsTable(logs []*domain.DeliveryLog, total, limit, offset int) {
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Время
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Статус
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Длительность
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Событие
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Ответ
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                if len(logs) == 0 {
+                    <tr>
+                        <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                            Нет записей
+                        </td>
+                    </tr>
+                } else {
+                    for _, log := range logs {
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                { log.DeliveredAt.Format("02.01.2006 15:04:05") }
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                if log.ResponseStatus >= 200 && log.ResponseStatus < 300 {
+                                    <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                                        ✓ Успешно
+                                    </span>
+                                } else {
+                                    <span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">
+                                        ✗ Ошибка ({ log.ResponseStatus })
+                                    </span>
+                                }
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                { log.DurationMS }ms
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-500">
+                                <button class="text-blue-600 hover:text-blue-800"
+                                        onclick="alert(JSON.stringify({ log.RequestPayload }))">
+                                    Просмотр
+                                </button>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-500">
+                                if log.ResponseBody != nil {
+                                    <button class="text-blue-600 hover:text-blue-800"
+                                            onclick="alert(JSON.stringify({ log.ResponseBody }))">
+                                        Просмотр
+                                    </button>
+                                } else {
+                                    <span class="text-gray-400">—</span>
+                                }
+                            </td>
+                        </tr>
                     }
-                } catch (error) {
-                    console.error('Login error:', error);
-                    const errorDiv = document.getElementById('error-message');
-                    errorDiv.textContent = 'Ошибка при входе';
-                    errorDiv.classList.remove('hidden');
                 }
-            });
-        </script>
-    }
+            </tbody>
+        </table>
+
+        if total > limit {
+            <div class="px-6 py-4 border-t flex justify-between items-center">
+                <div class="text-sm text-gray-500">
+                    Показано { len(logs) } из { total }
+                </div>
+                <div class="flex space-x-2">
+                    if offset > 0 {
+                        <button class="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200"
+                                hx-get="/integrations/{ integrationID }/logs?offset={ offset - limit }&limit={ limit }"
+                                hx-target="this"
+                                hx-swap="outerHTML">
+                            ← Назад
+                        </button>
+                    }
+                    if offset + limit < total {
+                        <button class="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200"
+                                hx-get="/integrations/{ integrationID }/logs?offset={ offset + limit }&limit={ limit }"
+                                hx-target="this"
+                                hx-swap="outerHTML">
+                            Вперед →
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+    </div>
 }
