@@ -13,17 +13,28 @@ templ LoginPage() {
                         Вход в систему
                     </h2>
                 </div>
-                <form class="mt-8 space-y-6" hx-post="/api/v1/login" hx-target="#result">
+                <form class="mt-8 space-y-6"
+                      hx-post="/api/v1/login"
+                      hx-target="#result"
+                      hx-headers='{"Content-Type": "application/json"}'
+                      hx-swap="innerHTML">
+
                     <div class="rounded-md shadow-sm -space-y-px">
                         <div>
-                            <label class="sr-only">Email</label>
-                            <input type="email" name="email" required
+                            <label for="email" class="sr-only">Email</label>
+                            <input id="email"
+                                   name="email"
+                                   type="email"
+                                   required
                                    class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                                    placeholder="Email">
                         </div>
                         <div>
-                            <label class="sr-only">Пароль</label>
-                            <input type="password" name="password" required
+                            <label for="password" class="sr-only">Пароль</label>
+                            <input id="password"
+                                   name="password"
+                                   type="password"
+                                   required
                                    class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                                    placeholder="Пароль">
                         </div>
@@ -36,24 +47,9 @@ templ LoginPage() {
                         </button>
                     </div>
 
-                    <div id="result"></div>
+                    <div id="result" class="text-center text-sm"></div>
                 </form>
             </div>
         </div>
-
-        <script>
-            document.body.addEventListener('htmx:afterRequest', function(evt) {
-                if (evt.detail.successful && evt.detail.pathInfo.requestPath === '/api/v1/login') {
-                    const response = JSON.parse(evt.detail.xhr.response);
-                    if (response.token) {
-                        localStorage.setItem('token', response.token);
-                        window.location.href = '/';
-                    } else {
-                        document.getElementById('result').innerHTML =
-                            '<div class="text-red-600 text-sm mt-2">Ошибка входа</div>';
-                    }
-                }
-            });
-        </script>
     }
 }
