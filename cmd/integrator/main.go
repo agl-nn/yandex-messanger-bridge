@@ -25,22 +25,29 @@ import (
 )
 
 func main() {
+	// Загружаем конфигурацию
 	cfg := config.Load()
 
+	// Подключаемся к БД
 	db, err := sqlx.Connect("postgres", cfg.DatabaseDSN)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 	defer db.Close()
 
+	// Выполняем миграции
 	if err := postgres.RunMigrations(db.DB, cfg.DatabaseDSN); err != nil {
 		log.Fatal("Failed to run migrations:", err)
 	}
 
+	// Инициализируем репозитории
 	integrationRepo := postgres.NewIntegrationRepository(db)
-	encryptor := encryption.NewEncryptor(cfg.EncryptionKey)
-	yandexClient := yandex.NewClient("")
 
+	// Инициализируем сервисы
+	encryptor := encryption.NewEncryptor(cfg.EncryptionKey)
+	yandexClient := yandex.NewClient("") // Токен будет подставляться динамически
+
+	// Инициализируем обработчики вебхуков
 	webhookHandler := webhook.NewHandler(
 		integrationRepo,
 		yandexClient,
@@ -53,30 +60,32 @@ func main() {
 		},
 	)
 
+	// Создаем Echo сервер
 	e := echo.New()
 
+	// Middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 
-	// Публичные webhook эндпоинты
+	// Публичные webhook эндпоинты (без аутентификации)
 	webhookGroup := e.Group("/webhook")
 	webhookGroup.POST("/:id/jira", echo.WrapHandler(http.HandlerFunc(webhookHandler.HandleJira)))
 	webhookGroup.POST("/:id/gitlab", echo.WrapHandler(http.HandlerFunc(webhookHandler.HandleGitLab)))
 	webhookGroup.POST("/:id/alertmanager", echo.WrapHandler(http.HandlerFunc(webhookHandler.HandleAlertmanager)))
 
-	// Публичные API эндпоинты (аутентификация)
+	// Публичные API эндпоинты
 	authAPI := api.NewAuthAPI(integrationRepo, cfg.JWTSecret)
 	e.POST("/api/v1/login", authAPI.Login)
 
-	// Публичные веб-эндпоинты (для отображения страницы логина)
+	// Публичные веб-эндпоинты
 	webHandler := web.NewHandler(integrationRepo)
 	e.GET("/login", webHandler.LoginPage)
 
-	// Защищенные API эндпоинты
+	// Защищенные API эндпоинты (с токеном в заголовке)
 	authMw := authMiddleware.NewAuthMiddleware(cfg.JWTSecret)
 	apiGroup := e.Group("/api/v1")
-	webGroup.Use(authMw.CookieAuth)
+	apiGroup.Use(authMw.RequireAuth)
 	{
 		integrationAPI := api.NewIntegrationAPI(integrationRepo, encryptor, cfg.BaseURL)
 		apiGroup.GET("/integrations", integrationAPI.List)
@@ -89,10 +98,9 @@ func main() {
 		apiGroup.GET("/me", authAPI.Me)
 	}
 
-	// Защищенные веб-эндпоинты
-	//webHandler := web.NewHandler(integrationRepo)
+	// Защищенные веб-эндпоинты (с токеном в cookie)
 	webGroup := e.Group("")
-	webGroup.Use(authMw.RequireAuth)
+	webGroup.Use(authMw.CookieAuth)
 	{
 		webGroup.GET("/", webHandler.Dashboard)
 		webGroup.GET("/integrations", webHandler.IntegrationsPage)
@@ -106,8 +114,10 @@ func main() {
 		webGroup.GET("/integrations/source-config-fields", webHandler.SourceConfigFields)
 	}
 
+	// Статические файлы
 	e.Static("/static", "internal/web/static")
 
+	// Graceful shutdown
 	go func() {
 		if err := e.Start(":" + cfg.Port); err != nil {
 			log.Printf("Server stopped: %v", err)
