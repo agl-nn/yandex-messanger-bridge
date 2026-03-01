@@ -35,31 +35,26 @@ templ Base(title string, user *domain.User) {
                 });
 
                 // Проверяем авторизацию при загрузке
-                if (!localStorage.getItem('token') && window.location.pathname !== '/login') {
-                    window.location.href = '/login';
-                }
+                document.addEventListener('DOMContentLoaded', function() {
+                    const token = localStorage.getItem('token');
+                    const currentPath = window.location.pathname;
 
-                // Обработка ответа от логина
-                document.body.addEventListener('htmx:afterRequest', function(evt) {
-                    if (evt.detail.successful && evt.detail.pathInfo.requestPath === '/api/v1/login') {
-                        try {
-                            const response = JSON.parse(evt.detail.xhr.response);
-                            if (response.token) {
-                                localStorage.setItem('token', response.token);
-                                window.location.href = '/';
-                            } else {
-                                document.getElementById('result').innerHTML =
-                                    '<div class="text-red-600">Неверный email или пароль</div>';
-                            }
-                        } catch (e) {
-                            console.error('Failed to parse login response', e);
-                        }
+                    if (!token && currentPath !== '/login') {
+                        window.location.href = '/login';
                     }
                 });
 
                 // Обработка выхода
                 document.body.addEventListener('htmx:afterRequest', function(evt) {
                     if (evt.detail.successful && evt.detail.pathInfo.requestPath === '/logout') {
+                        localStorage.removeItem('token');
+                        window.location.href = '/login';
+                    }
+                });
+
+                // Обработка ошибок авторизации
+                document.body.addEventListener('htmx:responseError', function(evt) {
+                    if (evt.detail.xhr.status === 401) {
                         localStorage.removeItem('token');
                         window.location.href = '/login';
                     }
