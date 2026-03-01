@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog/log"
 
 	"yandex-messenger-bridge/internal/domain"
 	repoInterface "yandex-messenger-bridge/internal/repository/interface"
@@ -20,15 +21,47 @@ type Handler struct {
 	repo repoInterface.IntegrationRepository
 }
 
-func (h *Handler) LoginPage(c echo.Context) error {
-	return pages.LoginPage().Render(c.Request().Context(), c.Response().Writer)
-}
-
 // NewHandler создает новый обработчик
 func NewHandler(repo repoInterface.IntegrationRepository) *Handler {
 	return &Handler{
 		repo: repo,
 	}
+}
+
+// LoginPage отображает страницу входа
+func (h *Handler) LoginPage(c echo.Context) error {
+	return pages.LoginPage().Render(c.Request().Context(), c.Response().Writer)
+}
+
+// Dashboard отображает главную страницу с дашбордом
+func (h *Handler) Dashboard(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+	log.Info().Str("user_id", userID).Msg("Dashboard accessed")
+
+	if userID == "" {
+		return c.String(http.StatusUnauthorized, "missing token")
+	}
+
+	integrations, err := h.repo.FindByUserID(c.Request().Context(), userID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to load integrations for dashboard")
+		return c.String(http.StatusInternalServerError, "Failed to load data")
+	}
+
+	activeCount := 0
+	for _, i := range integrations {
+		if i.IsActive {
+			activeCount++
+		}
+	}
+
+	stats := map[string]interface{}{
+		"total_integrations":  len(integrations),
+		"active_integrations": activeCount,
+		"today_deliveries":    0,
+	}
+
+	return pages.Dashboard(stats, integrations).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // IntegrationsPage отображает страницу со списком интеграций
@@ -37,6 +70,7 @@ func (h *Handler) IntegrationsPage(c echo.Context) error {
 
 	integrations, err := h.repo.FindByUserID(c.Request().Context(), userID)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to load integrations")
 		return c.String(http.StatusInternalServerError, "Failed to load integrations")
 	}
 
@@ -50,12 +84,15 @@ func (h *Handler) IntegrationsPage(c echo.Context) error {
 
 // NewIntegrationForm отображает форму создания новой интеграции
 func (h *Handler) NewIntegrationForm(c echo.Context) error {
-	return components.IntegrationForm(nil).Render(c.Request().Context(), c.Response().Writer)
+	return components.IntegrationForm(nil, []string{
+		"jira", "gitlab", "alertmanager", "grafana",
+	}).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // CreateIntegration создает новую интеграцию
 func (h *Handler) CreateIntegration(c echo.Context) error {
 	userID := getUserIDFromContext(c)
+	log.Info().Str("user_id", userID).Msg("Creating integration")
 
 	name := c.FormValue("name")
 	sourceType := c.FormValue("source_type")
@@ -63,8 +100,16 @@ func (h *Handler) CreateIntegration(c echo.Context) error {
 	botToken := c.FormValue("bot_token")
 	isActive := c.FormValue("is_active") == "on"
 
+	log.Info().
+		Str("name", name).
+		Str("source_type", sourceType).
+		Str("chat_id", chatID).
+		Bool("is_active", isActive).
+		Msg("Form values")
+
 	sourceConfig, err := h.parseSourceConfig(c, sourceType)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to parse source config")
 		return c.String(http.StatusBadRequest, "Invalid source config: "+err.Error())
 	}
 
@@ -81,9 +126,11 @@ func (h *Handler) CreateIntegration(c echo.Context) error {
 	}
 
 	if err := h.repo.Create(c.Request().Context(), integration); err != nil {
+		log.Error().Err(err).Msg("Failed to create integration")
 		return c.String(http.StatusInternalServerError, "Failed to create integration")
 	}
 
+	log.Info().Str("id", integration.ID).Msg("Integration created successfully")
 	return h.IntegrationsPage(c)
 }
 
@@ -94,14 +141,18 @@ func (h *Handler) EditIntegrationForm(c echo.Context) error {
 
 	integration, err := h.repo.FindByID(c.Request().Context(), id)
 	if err != nil {
+		log.Error().Err(err).Str("id", id).Msg("Integration not found")
 		return c.String(http.StatusNotFound, "Integration not found")
 	}
 
 	if integration.UserID != userID {
+		log.Warn().Str("user_id", userID).Str("owner_id", integration.UserID).Msg("Access denied")
 		return c.String(http.StatusForbidden, "Access denied")
 	}
 
-	return components.IntegrationForm(integration).Render(c.Request().Context(), c.Response().Writer)
+	return components.IntegrationForm(integration, []string{
+		"jira", "gitlab", "alertmanager", "grafana",
+	}).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // UpdateIntegration обновляет интеграцию
@@ -134,9 +185,11 @@ func (h *Handler) UpdateIntegration(c echo.Context) error {
 	}
 
 	if err := h.repo.Update(c.Request().Context(), existing); err != nil {
+		log.Error().Err(err).Msg("Failed to update integration")
 		return c.String(http.StatusInternalServerError, "Failed to update integration")
 	}
 
+	log.Info().Str("id", id).Msg("Integration updated successfully")
 	return h.IntegrationsPage(c)
 }
 
@@ -146,9 +199,11 @@ func (h *Handler) DeleteIntegration(c echo.Context) error {
 	userID := getUserIDFromContext(c)
 
 	if err := h.repo.Delete(c.Request().Context(), id, userID); err != nil {
+		log.Error().Err(err).Str("id", id).Msg("Failed to delete integration")
 		return c.String(http.StatusInternalServerError, "Failed to delete integration")
 	}
 
+	log.Info().Str("id", id).Msg("Integration deleted successfully")
 	return h.IntegrationsPage(c)
 }
 
@@ -165,6 +220,7 @@ func (h *Handler) IntegrationLogs(c echo.Context) error {
 
 	logs, total, err := h.repo.GetDeliveryLogs(c.Request().Context(), id, userID, limit, offset)
 	if err != nil {
+		log.Error().Err(err).Str("id", id).Msg("Failed to load logs")
 		return c.String(http.StatusInternalServerError, "Failed to load logs")
 	}
 
