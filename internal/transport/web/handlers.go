@@ -19,6 +19,10 @@ type Handler struct {
 	repo repoInterface.IntegrationRepository
 }
 
+func (h *Handler) LoginPage(c echo.Context) error {
+	return pages.LoginPage().Render(c.Request().Context(), c.Response().Writer)
+}
+
 // NewHandler создает новый обработчик
 func NewHandler(repo repoInterface.IntegrationRepository) *Handler {
 	return &Handler{
