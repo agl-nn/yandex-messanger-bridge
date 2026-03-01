@@ -23,7 +23,7 @@ templ IntegrationForm(integration *domain.Integration) {
                         </label>
                         <input type="text"
                                name="name"
-                               value={ if integration != nil { integration.Name } else { "" } }
+                               value=""
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                required/>
                     </div>
@@ -50,13 +50,10 @@ templ IntegrationForm(integration *domain.Integration) {
                         </label>
                         <input type="text"
                                name="chat_id"
-                               value={ if integration != nil { integration.DestinationConfig.ChatID } else { "" } }
+                               value=""
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                placeholder="0/0/fa15f152-..."
                                required/>
-                        <p class="text-xs text-gray-500 mt-1">
-                            Скопируйте из URL чата в веб-версии (замените %2F на /)
-                        </p>
                     </div>
 
                     <div class="mb-4">
@@ -65,12 +62,9 @@ templ IntegrationForm(integration *domain.Integration) {
                         </label>
                         <input type="password"
                                name="bot_token"
-                               value={ if integration != nil { "***" } else { "" } }
+                               value=""
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               required={ integration == nil }/>
-                        <p class="text-xs text-gray-500 mt-1">
-                            Токен из Яндекс 360 для бизнеса
-                        </p>
+                               required/>
                     </div>
 
                     <div class="mb-4">
@@ -78,7 +72,7 @@ templ IntegrationForm(integration *domain.Integration) {
                             <input type="checkbox"
                                    name="is_active"
                                    class="rounded border-gray-300 text-blue-600 shadow-sm"
-                                   checked={ integration == nil || integration.IsActive }/>
+                                   checked/>
                             <span class="ml-2 text-sm text-gray-700">Интеграция активна</span>
                         </label>
                     </div>
