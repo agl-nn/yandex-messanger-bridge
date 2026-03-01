@@ -29,6 +29,7 @@ templ Base(title string, user *domain.User) {
                 // Добавляем токен ко всем HTMX запросам
                 document.body.addEventListener('htmx:configRequest', function(evt) {
                     const token = localStorage.getItem('token');
+                    console.log('HTMX Request with token:', token);
                     if (token) {
                         evt.detail.headers['Authorization'] = 'Bearer ' + token;
                     }
@@ -39,7 +40,10 @@ templ Base(title string, user *domain.User) {
                     const token = localStorage.getItem('token');
                     const currentPath = window.location.pathname;
 
+                    console.log('Auth check - token:', token, 'path:', currentPath);
+
                     if (!token && currentPath !== '/login') {
+                        console.log('Redirecting to login');
                         window.location.href = '/login';
                     }
                 });
