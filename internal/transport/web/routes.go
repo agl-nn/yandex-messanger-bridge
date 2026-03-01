@@ -7,31 +7,29 @@ import (
 	"yandex-messenger-bridge/internal/transport/middleware"
 )
 
-// SetupRoutes настраивает маршруты веб-интерфейса
 func SetupRoutes(
 	e *echo.Group,
 	repo _interface.IntegrationRepository,
 	authMiddleware *middleware.AuthMiddleware,
 ) {
-	// Все веб-маршруты требуют аутентификации
-	e.Use(authMiddleware.RequireAuth)
-
 	handler := NewHandler(repo)
 
-	// Страницы
-	e.GET("", handler.Dashboard)
-	e.GET("/", handler.Dashboard)
-	e.GET("/integrations", handler.IntegrationsPage)
-	e.GET("/integrations/:id/logs", handler.IntegrationLogs)
+	// Публичные маршруты
+	e.GET("/login", handler.LoginPage)
 
-	// HTMX эндпоинты
-	e.GET("/integrations/new", handler.NewIntegrationForm)
-	e.POST("/integrations", handler.CreateIntegration)
-	e.GET("/integrations/:id/edit", handler.EditIntegrationForm)
-	e.PUT("/integrations/:id", handler.UpdateIntegration)
-	e.DELETE("/integrations/:id", handler.DeleteIntegration)
-	e.POST("/integrations/:id/test", handler.TestIntegration)
-
-	// Динамические формы
-	e.GET("/integrations/source-config-fields", handler.SourceConfigFields)
+	// Защищенные маршруты
+	protected := e.Group("")
+	protected.Use(authMiddleware.CookieAuth)
+	{
+		protected.GET("/", handler.Dashboard)
+		protected.GET("/integrations", handler.IntegrationsPage)
+		protected.GET("/integrations/new", handler.NewIntegrationForm)
+		protected.POST("/integrations", handler.CreateIntegration)
+		protected.GET("/integrations/:id/edit", handler.EditIntegrationForm)
+		protected.PUT("/integrations/:id", handler.UpdateIntegration)
+		protected.DELETE("/integrations/:id", handler.DeleteIntegration)
+		protected.GET("/integrations/:id/logs", handler.IntegrationLogs)
+		protected.POST("/integrations/:id/test", handler.TestIntegration)
+		// Удален вызов handler.SourceConfigFields
+	}
 }
