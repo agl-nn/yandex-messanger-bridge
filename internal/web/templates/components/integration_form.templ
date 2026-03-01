@@ -4,13 +4,125 @@ import (
     "yandex-messenger-bridge/internal/domain"
 )
 
-templ IntegrationForm(integration *domain.Integration) {
-    <div>
-        if integration != nil {
-            <h3>Редактирование интеграции</h3>
-        } else {
-            <h3>Создание интеграции</h3>
-        }
-        <p>Тестовый шаблон</p>
+templ IntegrationForm(integration *domain.Integration, sourceTypes []string) {
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" id="modal">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">
+                    if integration != nil {
+                        Редактирование интеграции
+                    } else {
+                        Новая интеграция
+                    }
+                </h3>
+
+                <form hx-post="/integrations"
+                      hx-target="#integrations-table"
+                      hx-swap="outerHTML"
+                      hx-on::after-request="if(event.detail.successful) document.getElementById('modal').remove()">
+
+                    if integration != nil {
+                        <input type="hidden" name="id" value={ integration.ID }/>
+                    }
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Название
+                        </label>
+                        <input type="text"
+                               name="name"
+                               value={ if integration != nil { integration.Name } else { "" } }
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               required/>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Тип источника
+                        </label>
+                        <select name="source_type"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                                hx-get="/integrations/source-config-fields"
+                                hx-target="#source-config"
+                                hx-trigger="change"
+                                hx-swap="innerHTML">
+
+                            <option value="">Выберите...</option>
+                            for _, st := range sourceTypes {
+                                <option value={ st }
+                                        if integration != nil && integration.SourceType == st { selected }>
+                                    { st }
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <div id="source-config" class="mb-4">
+                        if integration != nil {
+                            switch integration.SourceType {
+                            case "jira":
+                                @SourceConfigJira(integration.SourceConfig)
+                            case "gitlab":
+                                @SourceConfigGitLab(integration.SourceConfig)
+                            case "alertmanager":
+                                @SourceConfigAlertmanager(integration.SourceConfig)
+                            }
+                        }
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            ID чата
+                        </label>
+                        <input type="text"
+                               name="chat_id"
+                               value={ if integration != nil { integration.DestinationConfig.ChatID } else { "" } }
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="0/0/fa15f152-..."
+                               required/>
+                        <p class="text-xs text-gray-500 mt-1">
+                            Скопируйте из URL чата в веб-версии (замените %2F на /)
+                        </p>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Токен бота
+                        </label>
+                        <input type="password"
+                               name="bot_token"
+                               value={ if integration != nil { "***" } else { "" } }
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               required={ integration == nil }/>
+                        <p class="text-xs text-gray-500 mt-1">
+                            Токен из Яндекс 360 для бизнеса
+                        </p>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="flex items-center">
+                            <input type="checkbox"
+                                   name="is_active"
+                                   class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                   checked={ integration == nil || integration.IsActive }/>
+                            <span class="ml-2 text-sm text-gray-700">Интеграция активна</span>
+                        </label>
+                    </div>
+
+                    <div class="flex justify-end space-x-3">
+                        <button type="button"
+                                onclick="document.getElementById('modal').remove()"
+                                class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition">
+                            Отмена
+                        </button>
+                        <button type="submit"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                            Сохранить
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 }
