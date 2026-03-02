@@ -62,7 +62,7 @@ templ IntegrationsTable(integrations []*domain.Integration, baseURL string) {
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <button class="text-indigo-600 hover:text-indigo-900 mr-3"
-                                        hx-get="/integrations/{ i.ID }/edit"
+                                        hx-get={ "/integrations/" + i.ID + "/edit" }
                                         hx-target="#modal-container">
                                     Редактировать
                                 </button>
