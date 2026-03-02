@@ -11,9 +11,8 @@ templ IntegrationForm(integration *domain.Integration) {
                 @FormHeader(integration)
 
                 <form hx-post="/integrations"
-                      hx-target="#integrations-container"
-                      hx-swap="outerHTML"
-                      hx-on::after-request="if(event.detail.successful &amp;&amp; event.detail.pathInfo.requestPath === '/integrations') document.getElementById('modal').remove()">
+                      hx-swap="none"
+                      hx-on::after-request="if(event.detail.successful) { document.getElementById('modal').remove(); window.location.reload(); }">
 
                     @HiddenID(integration)
 
