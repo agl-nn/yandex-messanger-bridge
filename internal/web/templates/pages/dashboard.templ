@@ -51,6 +51,7 @@ templ Dashboard(stats map[string]interface{}, integrations []*domain.Integration
             </div>
 
             <div id="modal-container"></div>
+            <div id="test-result" class="fixed bottom-4 right-4 z-50"></div>
         </div>
     }
 }
@@ -90,18 +91,24 @@ templ IntegrationCard(i *domain.Integration) {
                     <span class="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">Неактивна</span>
                 }
 
-                <a href="/integrations/{ i.ID }/edit"
-                   class="text-blue-600 hover:text-blue-800"
-                   hx-get="/integrations/{ i.ID }/edit"
-                   hx-target="#modal-container">
-                    ✏️
-                </a>
+                <button class="text-indigo-600 hover:text-indigo-900"
+                        hx-get={ fmt.Sprintf("/integrations/%s/edit", i.ID) }
+                        hx-target="#modal-container">
+                    ✏️ Редактировать
+                </button>
 
-                <button hx-delete="/integrations/{ i.ID }"
+                <button class="text-green-600 hover:text-green-900"
+                        hx-post={ fmt.Sprintf("/integrations/%s/test", i.ID) }
+                        hx-target="#test-result"
+                        hx-swap="innerHTML">
+                    🚀 Тест
+                </button>
+
+                <button class="text-red-600 hover:text-red-900"
+                        hx-delete={ fmt.Sprintf("/integrations/%s", i.ID) }
                         hx-confirm="Удалить интеграцию?"
-                        hx-target="#integrations-table"
-                        class="text-red-600 hover:text-red-800">
-                    🗑️
+                        hx-target="#integrations-container">
+                    🗑️ Удалить
                 </button>
             </div>
         </div>
