@@ -1,6 +1,7 @@
 package components
 
 import (
+    "fmt"
     "yandex-messenger-bridge/internal/domain"
 )
 
@@ -62,18 +63,18 @@ templ IntegrationsTable(integrations []*domain.Integration, baseURL string) {
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <button class="text-indigo-600 hover:text-indigo-900 mr-3"
-                                        hx-get={ "/integrations/" + i.ID + "/edit" }
+                                        hx-get={ fmt.Sprintf("/integrations/%s/edit", i.ID) }
                                         hx-target="#modal-container">
                                     Редактировать
                                 </button>
                                 <button class="text-green-600 hover:text-green-900 mr-3"
-                                        hx-post={ "/integrations/" + i.ID + "/test" }
+                                        hx-post={ fmt.Sprintf("/integrations/%s/test", i.ID) }
                                         hx-target="#test-result"
                                         hx-swap="innerHTML">
                                     Тест
                                 </button>
                                 <button class="text-red-600 hover:text-red-900"
-                                        hx-delete={ "/integrations/" + i.ID }
+                                        hx-delete={ fmt.Sprintf("/integrations/%s", i.ID) }
                                         hx-confirm="Удалить интеграцию?"
                                         hx-target="#integrations-container">
                                     Удалить
