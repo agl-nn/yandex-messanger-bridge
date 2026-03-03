@@ -1,127 +1,311 @@
-// Путь: internal/service/webhook/handler.go
-package webhook
+// Путь: internal/transport/web/handlers.go
+package web
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
 
 	"yandex-messenger-bridge/internal/domain"
-	"yandex-messenger-bridge/internal/repository/interface"
+	repoInterface "yandex-messenger-bridge/internal/repository/interface"
 	"yandex-messenger-bridge/internal/service/encryption"
 	"yandex-messenger-bridge/internal/yandex"
-	"bytes"
+	"yandex-messenger-bridge/internal/web/templates/components"
+	"yandex-messenger-bridge/internal/web/templates/pages"
 )
 
-// Config - конфигурация вебхук обработчика
-type Config struct {
-	GitLabTimeout       time.Duration
-	AlertmanagerTimeout time.Duration
-	JiraTimeout         time.Duration
-	MaxRetries          int
-}
-
-// Handler - обработчик вебхуков
+// Handler - обработчик веб-интерфейса
 type Handler struct {
-	repo      _interface.IntegrationRepository
-	yandex    *yandex.Client
-	encryptor *encryption.Encryptor
-	config    Config
+	repo      repoInterface.IntegrationRepository
+	encryptor *encryption.Encryptor // добавлено
 }
 
 // NewHandler создает новый обработчик
-func NewHandler(
-	repo _interface.IntegrationRepository,
-	yandex *yandex.Client,
-	encryptor *encryption.Encryptor,
-	config Config,
-) *Handler {
+func NewHandler(repo repoInterface.IntegrationRepository, encryptor *encryption.Encryptor) *Handler {
 	return &Handler{
 		repo:      repo,
-		yandex:    yandex,
-		encryptor: encryptor,
-		config:    config,
+		encryptor: encryptor, // добавлено
 	}
 }
 
-// logDelivery логирует попытку доставки
-func (h *Handler) logDelivery(integrationID string, payload interface{}, err error) {
-	logEntry := log.Info()
+// LoginPage отображает страницу входа
+func (h *Handler) LoginPage(c echo.Context) error {
+	return pages.LoginPage().Render(c.Request().Context(), c.Response().Writer)
+}
+
+// Dashboard отображает главную страницу с дашбордом
+func (h *Handler) Dashboard(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+	log.Info().Str("user_id", userID).Msg("Dashboard accessed")
+
+	if userID == "" {
+		return c.String(http.StatusUnauthorized, "missing token")
+	}
+
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
 	if err != nil {
-		logEntry = log.Error().Err(err)
+		log.Error().Err(err).Msg("Failed to get user")
 	}
 
-	logEntry.Str("integration_id", integrationID).
-		Interface("payload", payload).
-		Time("timestamp", time.Now()).
-		Msg("Webhook delivery")
-}
-
-// getIntegrationByID загружает интеграцию и расшифровывает токен
-func (h *Handler) getIntegrationByID(ctx context.Context, id string) (*domain.Integration, error) {
-	integration, err := h.repo.FindByID(ctx, id)
+	integrations, err := h.repo.FindByUserID(c.Request().Context(), userID)
 	if err != nil {
-		return nil, fmt.Errorf("integration not found: %w", err)
+		log.Error().Err(err).Msg("Failed to load integrations for dashboard")
+		return c.String(http.StatusInternalServerError, "Failed to load data")
 	}
 
-	if !integration.IsActive {
-		return nil, fmt.Errorf("integration is inactive")
+	activeCount := 0
+	for _, i := range integrations {
+		if i.IsActive {
+			activeCount++
+		}
 	}
 
-	decrypted, err := h.encryptor.Decrypt(integration.DestinationConfig.BotToken)
+	stats := map[string]interface{}{
+		"total_integrations":  len(integrations),
+		"active_integrations": activeCount,
+		"today_deliveries":    0,
+	}
+
+	return pages.Dashboard(stats, integrations, user).Render(c.Request().Context(), c.Response().Writer)
+}
+
+// IntegrationsPage отображает страницу со списком интеграций
+func (h *Handler) IntegrationsPage(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+
+	integrations, err := h.repo.FindByUserID(c.Request().Context(), userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt bot token: %w", err)
+		log.Error().Err(err).Msg("Failed to load integrations")
+		return c.String(http.StatusInternalServerError, "Failed to load integrations")
 	}
-	integration.DestinationConfig.BotToken = decrypted
 
-	return integration, nil
+	baseURL := getBaseURL(c)
+	for i := range integrations {
+		integrations[i].WebhookURL = baseURL + "/webhook/" + integrations[i].ID
+	}
+
+	return components.IntegrationsTable(integrations, baseURL).Render(c.Request().Context(), c.Response().Writer)
 }
 
-// sendToYandex отправляет сообщение в Yandex Messenger
-func (h *Handler) sendToYandex(ctx context.Context, integration *domain.Integration, message string) error {
-	client := yandex.NewClient(integration.DestinationConfig.BotToken)
-	return client.SendToChat(ctx, integration.DestinationConfig.ChatID, message, nil)
+// NewIntegrationForm отображает форму создания новой интеграции
+func (h *Handler) NewIntegrationForm(c echo.Context) error {
+	return components.IntegrationForm(nil).Render(c.Request().Context(), c.Response().Writer)
 }
 
-// readBody читает и возвращает тело запроса
-func (h *Handler) readBody(r *http.Request) ([]byte, error) {
-	body, err := io.ReadAll(r.Body)
+// CreateIntegration создает новую интеграцию
+func (h *Handler) CreateIntegration(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+	log.Info().Str("user_id", userID).Msg("Creating integration")
+
+	name := c.FormValue("name")
+	sourceType := c.FormValue("source_type")
+	chatID := c.FormValue("chat_id")
+	botToken := c.FormValue("bot_token")
+	isActive := c.FormValue("is_active") == "on"
+
+	log.Info().
+		Str("name", name).
+		Str("source_type", sourceType).
+		Str("chat_id", chatID).
+		Bool("is_active", isActive).
+		Msg("Form values")
+
+	// Шифруем токен перед сохранением
+	encryptedToken, err := h.encryptor.Encrypt(botToken)
 	if err != nil {
-		return nil, err
+		log.Error().Err(err).Msg("Failed to encrypt bot token")
+		return c.String(http.StatusInternalServerError, "Failed to encrypt token")
 	}
-	r.Body = io.NopCloser(bytes.NewBuffer(body))
-	return body, nil
+
+	sourceConfig := make(map[string]interface{})
+
+	integration := &domain.Integration{
+		UserID:       userID,
+		Name:         name,
+		SourceType:   sourceType,
+		SourceConfig: sourceConfig,
+		DestinationConfig: domain.DestinationConfig{
+			ChatID:   chatID,
+			BotToken: encryptedToken, // сохраняем зашифрованный токен
+		},
+		IsActive: isActive,
+	}
+
+	if err := h.repo.Create(c.Request().Context(), integration); err != nil {
+		log.Error().Err(err).Msg("Failed to create integration")
+		return c.String(http.StatusInternalServerError, "Failed to create integration")
+	}
+
+	log.Info().Str("id", integration.ID).Msg("Integration created successfully")
+	return h.IntegrationsPage(c)
 }
 
-// mapToStruct конвертирует map в struct
-func mapToStruct(m map[string]interface{}, s interface{}) error {
-	jsonData, err := json.Marshal(m)
+// EditIntegrationForm отображает форму редактирования
+func (h *Handler) EditIntegrationForm(c echo.Context) error {
+	id := c.Param("id")
+	userID := getUserIDFromContext(c)
+
+	integration, err := h.repo.FindByID(c.Request().Context(), id)
 	if err != nil {
-		return err
+		log.Error().Err(err).Str("id", id).Msg("Integration not found")
+		return c.String(http.StatusNotFound, "Integration not found")
 	}
-	return json.Unmarshal(jsonData, s)
+
+	if integration.UserID != userID {
+		log.Warn().Str("user_id", userID).Str("owner_id", integration.UserID).Msg("Access denied")
+		return c.String(http.StatusForbidden, "Access denied")
+	}
+
+	return components.IntegrationForm(integration).Render(c.Request().Context(), c.Response().Writer)
 }
 
-// retrySend повторяет отправку с экспоненциальной задержкой
-func (h *Handler) retrySend(integration *domain.Integration, message string, attempt int) {
-	if attempt >= h.config.MaxRetries {
-		log.Error().Int("attempts", attempt).Msg("Max retries reached")
-		return
+// UpdateIntegration обновляет интеграцию
+func (h *Handler) UpdateIntegration(c echo.Context) error {
+	id := c.Param("id")
+	userID := getUserIDFromContext(c)
+
+	existing, err := h.repo.FindByID(c.Request().Context(), id)
+	if err != nil {
+		return c.String(http.StatusNotFound, "Integration not found")
 	}
 
-	delay := time.Duration(1<<uint(attempt)) * time.Second
-	time.Sleep(delay)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := h.sendToYandex(ctx, integration, message); err != nil {
-		log.Error().Err(err).Int("attempt", attempt+1).Msg("Retry failed")
-		h.retrySend(integration, message, attempt+1)
+	if existing.UserID != userID {
+		return c.String(http.StatusForbidden, "Access denied")
 	}
+
+	existing.Name = c.FormValue("name")
+	existing.SourceType = c.FormValue("source_type")
+	existing.IsActive = c.FormValue("is_active") == "on"
+	existing.DestinationConfig.ChatID = c.FormValue("chat_id")
+
+	if token := c.FormValue("bot_token"); token != "" && token != "***" {
+		encryptedToken, err := h.encryptor.Encrypt(token)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to encrypt bot token")
+			return c.String(http.StatusInternalServerError, "Failed to encrypt token")
+		}
+		existing.DestinationConfig.BotToken = encryptedToken
+	}
+
+	if err := h.repo.Update(c.Request().Context(), existing); err != nil {
+		log.Error().Err(err).Msg("Failed to update integration")
+		return c.String(http.StatusInternalServerError, "Failed to update integration")
+	}
+
+	log.Info().Str("id", id).Msg("Integration updated successfully")
+	return h.IntegrationsPage(c)
+}
+
+// DeleteIntegration удаляет интеграцию
+func (h *Handler) DeleteIntegration(c echo.Context) error {
+	id := c.Param("id")
+	userID := getUserIDFromContext(c)
+
+	if err := h.repo.Delete(c.Request().Context(), id, userID); err != nil {
+		log.Error().Err(err).Str("id", id).Msg("Failed to delete integration")
+		return c.String(http.StatusInternalServerError, "Failed to delete integration")
+	}
+
+	log.Info().Str("id", id).Msg("Integration deleted successfully")
+	return h.IntegrationsPage(c)
+}
+
+// IntegrationLogs отображает логи доставки для интеграции
+func (h *Handler) IntegrationLogs(c echo.Context) error {
+	id := c.Param("id")
+	userID := getUserIDFromContext(c)
+
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	offset, _ := strconv.Atoi(c.QueryParam("offset"))
+
+	logs, total, err := h.repo.GetDeliveryLogs(c.Request().Context(), id, userID, limit, offset)
+	if err != nil {
+		log.Error().Err(err).Str("id", id).Msg("Failed to load logs")
+		return c.String(http.StatusInternalServerError, "Failed to load logs")
+	}
+
+	return components.LogsTable(logs, total, limit, offset).Render(c.Request().Context(), c.Response().Writer)
+}
+
+// TestIntegration отправляет тестовое сообщение в Яндекс.Мессенджер
+func (h *Handler) TestIntegration(c echo.Context) error {
+	id := c.Param("id")
+	userID := getUserIDFromContext(c)
+
+	// Загружаем интеграцию
+	integration, err := h.repo.FindByIDAndUser(c.Request().Context(), id, userID)
+	if err != nil {
+		return c.String(http.StatusNotFound, "Интеграция не найдена")
+	}
+
+	// Расшифровываем токен бота
+	decryptedToken, err := h.encryptor.Decrypt(integration.DestinationConfig.BotToken)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to decrypt bot token")
+		return c.HTML(http.StatusInternalServerError, `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">Ошибка расшифровки токена</div>`)
+	}
+
+	// Создаём клиент Яндекс.Мессенджера
+	yandexClient := yandex.NewClient(decryptedToken)
+
+	// Формируем тестовое сообщение
+	testMessage := fmt.Sprintf("🔄 *Тестовое сообщение*\n\nИнтеграция: *%s*\nТип: *%s*\nВремя: *%s*",
+		integration.Name,
+		integration.SourceType,
+		time.Now().Format("02.01.2006 15:04:05"))
+
+	// Отправляем сообщение
+	err = yandexClient.SendToChat(c.Request().Context(), integration.DestinationConfig.ChatID, testMessage, nil)
+
+	if err != nil {
+		log.Error().Err(err).Str("integration_id", id).Msg("Test message failed")
+		return c.HTML(http.StatusInternalServerError, fmt.Sprintf(`<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">Ошибка: %s</div>`, err.Error()))
+	}
+
+	log.Info().Str("integration_id", id).Msg("Test message sent successfully")
+	return c.HTML(http.StatusOK, `<div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">✓ Тестовое сообщение отправлено</div>`)
+}
+
+// Logout обрабатывает выход из системы
+func (h *Handler) Logout(c echo.Context) error {
+	// Удаляем cookie
+	c.SetCookie(&http.Cookie{
+		Name:     "token",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Now().Add(-24 * time.Hour),
+		HttpOnly: true,
+	})
+
+	return c.NoContent(http.StatusOK)
+}
+
+// Вспомогательные функции
+func getUserIDFromContext(c echo.Context) string {
+	userID := c.Get("user_id")
+	if userID == nil {
+		return ""
+	}
+	return userID.(string)
+}
+
+func getBaseURL(c echo.Context) string {
+	scheme := "http"
+	if c.Request().TLS != nil {
+		scheme = "https"
+	}
+	return scheme + "://" + c.Request().Host
+}
+
+func (h *Handler) parseSourceConfig(c echo.Context, sourceType string) (map[string]interface{}, error) {
+	return make(map[string]interface{}), nil
 }
