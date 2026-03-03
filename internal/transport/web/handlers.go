@@ -2,17 +2,20 @@
 package web
 
 import (
-	//"encoding/json"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
-	//"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
 
 	"yandex-messenger-bridge/internal/domain"
 	repoInterface "yandex-messenger-bridge/internal/repository/interface"
+	"yandex-messenger-bridge/internal/service/encryption"
+	"yandex-messenger-bridge/internal/yandex"
 	"yandex-messenger-bridge/internal/web/templates/components"
 	"yandex-messenger-bridge/internal/web/templates/pages"
 )
@@ -20,20 +23,56 @@ import (
 // Handler - обработчик веб-интерфейса
 type Handler struct {
 	repo      repoInterface.IntegrationRepository
-	encryptor *encryption.Encryptor
+	encryptor *encryption.Encryptor // добавлено
 }
 
 // NewHandler создает новый обработчик
-func NewHandler(repo repoInterface.IntegrationRepository) *Handler {
+func NewHandler(repo repoInterface.IntegrationRepository, encryptor *encryption.Encryptor) *Handler {
 	return &Handler{
 		repo:      repo,
-		encryptor: encryptor,
+		encryptor: encryptor, // добавлено
 	}
 }
 
 // LoginPage отображает страницу входа
 func (h *Handler) LoginPage(c echo.Context) error {
 	return pages.LoginPage().Render(c.Request().Context(), c.Response().Writer)
+}
+
+// Dashboard отображает главную страницу с дашбордом
+func (h *Handler) Dashboard(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+	log.Info().Str("user_id", userID).Msg("Dashboard accessed")
+
+	if userID == "" {
+		return c.String(http.StatusUnauthorized, "missing token")
+	}
+
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get user")
+	}
+
+	integrations, err := h.repo.FindByUserID(c.Request().Context(), userID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to load integrations for dashboard")
+		return c.String(http.StatusInternalServerError, "Failed to load data")
+	}
+
+	activeCount := 0
+	for _, i := range integrations {
+		if i.IsActive {
+			activeCount++
+		}
+	}
+
+	stats := map[string]interface{}{
+		"total_integrations":  len(integrations),
+		"active_integrations": activeCount,
+		"today_deliveries":    0,
+	}
+
+	return pages.Dashboard(stats, integrations, user).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // IntegrationsPage отображает страницу со списком интеграций
@@ -77,7 +116,13 @@ func (h *Handler) CreateIntegration(c echo.Context) error {
 		Bool("is_active", isActive).
 		Msg("Form values")
 
-	// Упрощенная конфигурация (пустая)
+	// Шифруем токен перед сохранением
+	encryptedToken, err := h.encryptor.Encrypt(botToken)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to encrypt bot token")
+		return c.String(http.StatusInternalServerError, "Failed to encrypt token")
+	}
+
 	sourceConfig := make(map[string]interface{})
 
 	integration := &domain.Integration{
@@ -87,7 +132,7 @@ func (h *Handler) CreateIntegration(c echo.Context) error {
 		SourceConfig: sourceConfig,
 		DestinationConfig: domain.DestinationConfig{
 			ChatID:   chatID,
-			BotToken: botToken,
+			BotToken: encryptedToken, // сохраняем зашифрованный токен
 		},
 		IsActive: isActive,
 	}
@@ -137,13 +182,15 @@ func (h *Handler) UpdateIntegration(c echo.Context) error {
 	existing.Name = c.FormValue("name")
 	existing.SourceType = c.FormValue("source_type")
 	existing.IsActive = c.FormValue("is_active") == "on"
-
-	// Конфигурация остается пустой
-	existing.SourceConfig = make(map[string]interface{})
-
 	existing.DestinationConfig.ChatID = c.FormValue("chat_id")
+
 	if token := c.FormValue("bot_token"); token != "" && token != "***" {
-		existing.DestinationConfig.BotToken = token
+		encryptedToken, err := h.encryptor.Encrypt(token)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to encrypt bot token")
+			return c.String(http.StatusInternalServerError, "Failed to encrypt token")
+		}
+		existing.DestinationConfig.BotToken = encryptedToken
 	}
 
 	if err := h.repo.Update(c.Request().Context(), existing); err != nil {
@@ -228,7 +275,19 @@ func (h *Handler) TestIntegration(c echo.Context) error {
 	return c.HTML(http.StatusOK, `<div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">✓ Тестовое сообщение отправлено</div>`)
 }
 
-// SourceConfigFields удален - больше не нужен
+// Logout обрабатывает выход из системы
+func (h *Handler) Logout(c echo.Context) error {
+	// Удаляем cookie
+	c.SetCookie(&http.Cookie{
+		Name:     "token",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Now().Add(-24 * time.Hour),
+		HttpOnly: true,
+	})
+
+	return c.NoContent(http.StatusOK)
+}
 
 // Вспомогательные функции
 func getUserIDFromContext(c echo.Context) string {
@@ -247,27 +306,6 @@ func getBaseURL(c echo.Context) string {
 	return scheme + "://" + c.Request().Host
 }
 
-// parseSourceConfig упрощен - возвращает пустую конфигурацию
 func (h *Handler) parseSourceConfig(c echo.Context, sourceType string) (map[string]interface{}, error) {
 	return make(map[string]interface{}), nil
-}
-
-// Logout обрабатывает выход из системы
-func (h *Handler) Logout(c echo.Context) error {
-	// Удаляем cookie
-	c.SetCookie(&http.Cookie{
-		Name:     "token",
-		Value:    "",
-		Path:     "/",
-		Expires:  time.Now().Add(-24 * time.Hour),
-		HttpOnly: true,
-	})
-
-	// Возвращаем HTML с очисткой localStorage и редиректом
-	return c.HTML(http.StatusOK, `
-        <script>
-            localStorage.removeItem('token');
-            window.location.href = '/login';
-        </script>
-    `)
 }
