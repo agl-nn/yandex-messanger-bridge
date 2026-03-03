@@ -19,13 +19,15 @@ import (
 
 // Handler - обработчик веб-интерфейса
 type Handler struct {
-	repo repoInterface.IntegrationRepository
+	repo      repoInterface.IntegrationRepository
+	encryptor *encryption.Encryptor
 }
 
 // NewHandler создает новый обработчик
 func NewHandler(repo repoInterface.IntegrationRepository) *Handler {
 	return &Handler{
-		repo: repo,
+		repo:      repo,
+		encryptor: encryptor,
 	}
 }
 
@@ -187,14 +189,43 @@ func (h *Handler) IntegrationLogs(c echo.Context) error {
 	return components.LogsTable(logs, total, limit, offset).Render(c.Request().Context(), c.Response().Writer)
 }
 
-// TestIntegration отправляет тестовое сообщение
+// TestIntegration отправляет тестовое сообщение в Яндекс.Мессенджер
 func (h *Handler) TestIntegration(c echo.Context) error {
 	id := c.Param("id")
-	if _, err := h.repo.FindByID(c.Request().Context(), id); err != nil {
-		return c.String(http.StatusNotFound, "Integration not found")
+	userID := getUserIDFromContext(c)
+
+	// Загружаем интеграцию
+	integration, err := h.repo.FindByIDAndUser(c.Request().Context(), id, userID)
+	if err != nil {
+		return c.String(http.StatusNotFound, "Интеграция не найдена")
 	}
 
-	return c.HTML(http.StatusOK, `<div class="text-green-600">✓ Тест отправлен</div>`)
+	// Расшифровываем токен бота
+	decryptedToken, err := h.encryptor.Decrypt(integration.DestinationConfig.BotToken)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to decrypt bot token")
+		return c.HTML(http.StatusInternalServerError, `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">Ошибка расшифровки токена</div>`)
+	}
+
+	// Создаём клиент Яндекс.Мессенджера
+	yandexClient := yandex.NewClient(decryptedToken)
+
+	// Формируем тестовое сообщение
+	testMessage := fmt.Sprintf("🔄 *Тестовое сообщение*\n\nИнтеграция: *%s*\nТип: *%s*\nВремя: *%s*",
+		integration.Name,
+		integration.SourceType,
+		time.Now().Format("02.01.2006 15:04:05"))
+
+	// Отправляем сообщение
+	err = yandexClient.SendToChat(c.Request().Context(), integration.DestinationConfig.ChatID, testMessage, nil)
+
+	if err != nil {
+		log.Error().Err(err).Str("integration_id", id).Msg("Test message failed")
+		return c.HTML(http.StatusInternalServerError, fmt.Sprintf(`<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">Ошибка: %s</div>`, err.Error()))
+	}
+
+	log.Info().Str("integration_id", id).Msg("Test message sent successfully")
+	return c.HTML(http.StatusOK, `<div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">✓ Тестовое сообщение отправлено</div>`)
 }
 
 // SourceConfigFields удален - больше не нужен

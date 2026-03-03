@@ -79,7 +79,7 @@ func main() {
 	e.POST("/api/v1/login", authAPI.Login)
 
 	// Публичные веб-эндпоинты
-	webHandler := web.NewHandler(integrationRepo)
+	webHandler := web.NewHandler(integrationRepo, encryptor)
 	e.GET("/login", webHandler.LoginPage)
 
 	// Защищенные API эндпоинты (с токеном в заголовке)
