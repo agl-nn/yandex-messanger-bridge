@@ -92,7 +92,11 @@ templ Navbar(user *domain.User) {
                         <div class="text-sm text-right">
                             <div class="font-medium">{ user.Email }</div>
                             <div class="text-gray-400 text-xs">
-                                { if user.Role == "admin" { "Администратор" } else { "Пользователь" } }
+                               if user.Role == "admin" {
+                                   <span class="text-gray-400 text-xs">Администратор</span>
+                               } else {
+                                   <span class="text-gray-400 text-xs">Пользователь</span>
+                               } { if user.Role == "admin" { "Администратор" } else { "Пользователь" } }
                             </div>
                         </div>
 
