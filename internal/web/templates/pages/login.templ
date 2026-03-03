@@ -59,24 +59,8 @@ templ LoginPage() {
                     const data = await response.json();
 
                     if (response.ok && data.token) {
-                        localStorage.setItem('token', data.token);
-                        console.log('Token saved:', data.token.substring(0, 20) + '...');
-
-                        // Проверяем, что токен действительно сохранился
-                        setTimeout(() => {
-                            const savedToken = localStorage.getItem('token');
-                            console.log('Redirecting with token:', savedToken ? 'present' : 'missing');
-
-                            if (savedToken) {
-                                window.location.href = '/';
-                            } else {
-                                console.error('Token not saved, retrying...');
-                                // Пробуем еще раз через 100мс
-                                setTimeout(() => {
-                                    window.location.href = '/';
-                                }, 100);
-                            }
-                        }, 500);
+                        // Cookie уже установлена сервером, просто переходим на главную
+                        window.location.href = '/';
                     } else {
                         const errorDiv = document.getElementById('error-message');
                         errorDiv.textContent = 'Неверный email или пароль';

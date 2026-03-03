@@ -30,29 +30,25 @@ templ Base(title string, user *domain.User) {
                 document.addEventListener('DOMContentLoaded', function() {
                     const currentPath = window.location.pathname;
 
-                    // Функция для получения cookie
                     function getCookie(name) {
                         const value = `; ${document.cookie}`;
                         const parts = value.split(`; ${name}=`);
                         if (parts.length === 2) return parts.pop().split(';').shift();
                     }
 
-                    // Проверяем, есть ли cookie с токеном
                     const token = getCookie('token');
                     const hasToken = !!token;
 
                     console.log('Auth check:', { hasToken, path: currentPath });
 
-                    // Если нет токена и мы не на странице логина
                     if (!hasToken && !currentPath.startsWith('/login')) {
                         console.log('No token, redirecting to login');
                         window.location.href = '/login';
                     }
                 });
 
-                // Добавляем токен к запросам HTMX
+                // Добавляем токен к запросам HTMX (на случай если где-то используется API)
                 document.body.addEventListener('htmx:configRequest', function(evt) {
-                    // Функция для получения cookie
                     function getCookie(name) {
                         const value = `; ${document.cookie}`;
                         const parts = value.split(`; ${name}=`);
@@ -65,25 +61,9 @@ templ Base(title string, user *domain.User) {
                     }
                 });
 
-                // Обработка ответа от логина
-                document.body.addEventListener('htmx:afterRequest', function(evt) {
-                    if (evt.detail.successful && evt.detail.pathInfo.requestPath === '/api/v1/login') {
-                        try {
-                            const response = JSON.parse(evt.detail.xhr.response);
-                            if (response.token) {
-                                console.log('Login successful, redirecting to dashboard');
-                                window.location.href = '/';
-                            }
-                        } catch (e) {
-                            console.error('Failed to parse login response', e);
-                        }
-                    }
-                });
-
                 // Обработка ответа от logout
                 document.body.addEventListener('htmx:afterRequest', function(evt) {
                     if (evt.detail.successful && evt.detail.pathInfo.requestPath === '/logout') {
-                        console.log('Logout successful');
                         window.location.href = '/login';
                     }
                 });
@@ -91,7 +71,6 @@ templ Base(title string, user *domain.User) {
                 // Обработка ошибок авторизации
                 document.body.addEventListener('htmx:responseError', function(evt) {
                     if (evt.detail.xhr.status === 401) {
-                        console.log('Unauthorized, redirecting to login');
                         window.location.href = '/login';
                     }
                 });

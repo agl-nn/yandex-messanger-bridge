@@ -18,7 +18,7 @@ func NewAuthMiddleware(jwtSecret string) *AuthMiddleware {
 	}
 }
 
-// Проверка токена из заголовка (для API)
+// RequireAuth проверяет токен в заголовке (для API)
 func (m *AuthMiddleware) RequireAuth(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		token := extractToken(c.Request())
@@ -38,10 +38,10 @@ func (m *AuthMiddleware) RequireAuth(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-// НОВЫЙ МЕТОД: Проверка токена из cookie (для веб-интерфейса)
+// CookieAuth проверяет токен в cookie (для веб-интерфейса) с редиректом для браузеров
 func (m *AuthMiddleware) CookieAuth(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		// Сначала проверяем заголовок (для API)
+		// Проверка токена в заголовке (для API)
 		token := extractToken(c.Request())
 		if token != "" {
 			claims, err := m.validateJWT(token)
@@ -52,7 +52,7 @@ func (m *AuthMiddleware) CookieAuth(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 		}
 
-		// Если нет токена в заголовке, проверяем cookie
+		// Проверка токена в cookie
 		cookie, err := c.Cookie("token")
 		if err == nil {
 			claims, err := m.validateJWT(cookie.Value)
@@ -63,6 +63,13 @@ func (m *AuthMiddleware) CookieAuth(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 		}
 
+		// Если нет токена, определяем тип клиента по заголовку Accept
+		accept := c.Request().Header.Get("Accept")
+		if strings.Contains(accept, "text/html") {
+			// Для браузера - редирект на страницу логина
+			return c.Redirect(http.StatusSeeOther, "/login")
+		}
+		// Для API-клиентов возвращаем JSON
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "missing token"})
 	}
 }
