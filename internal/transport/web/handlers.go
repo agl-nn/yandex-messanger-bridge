@@ -219,3 +219,18 @@ func getBaseURL(c echo.Context) string {
 func (h *Handler) parseSourceConfig(c echo.Context, sourceType string) (map[string]interface{}, error) {
 	return make(map[string]interface{}), nil
 }
+
+// Logout обрабатывает выход из системы
+func (h *Handler) Logout(c echo.Context) error {
+	// Удаляем cookie
+	c.SetCookie(&http.Cookie{
+		Name:     "token",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Now().Add(-24 * time.Hour),
+		HttpOnly: true,
+	})
+
+	// Перенаправляем на страницу входа
+	return c.Redirect(http.StatusSeeOther, "/login")
+}
