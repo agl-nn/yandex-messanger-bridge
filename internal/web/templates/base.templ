@@ -1,53 +1,145 @@
-<script>
-    // Проверка авторизации при загрузке страницы с небольшой задержкой
-    function checkAuth() {
-        const currentPath = window.location.pathname;
+package templates
 
-        function getCookie(name) {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop().split(';').shift();
-        }
+import (
+    "yandex-messenger-bridge/internal/domain"
+)
 
-        const token = getCookie('token');
-        const hasToken = !!token;
+templ Base(title string, user *domain.User) {
+    <!DOCTYPE html>
+    <html lang="ru">
+        <head>
+            <meta charset="UTF-8"/>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+            <title>{ title } - Yandex Messenger Bridge</title>
 
-        console.log('Auth check:', { hasToken, path: currentPath });
+            <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <link rel="stylesheet" href="/static/css/custom.css"/>
+        </head>
+        <body class="bg-gray-50 min-h-screen flex flex-col">
+            @Navbar(user)
 
-        if (!hasToken && !currentPath.startsWith('/login')) {
-            console.log('No token, redirecting to login');
-            window.location.href = '/login';
-        }
-    }
+            <main class="flex-1 container mx-auto px-4 py-8">
+                { children... }
+            </main>
 
-    // Даём время cookie установиться после редиректа
-    setTimeout(checkAuth, 100);
+            @Footer()
+            <script>
+                // Проверка авторизации при загрузке страницы с небольшой задержкой
+                function checkAuth() {
+                    const currentPath = window.location.pathname;
 
-    // Добавляем токен к запросам HTMX
-    document.body.addEventListener('htmx:configRequest', function(evt) {
-        function getCookie(name) {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop().split(';').shift();
-        }
+                    function getCookie(name) {
+                        const value = `; ${document.cookie}`;
+                        const parts = value.split(`; ${name}=`);
+                        if (parts.length === 2) return parts.pop().split(';').shift();
+                    }
 
-        const token = getCookie('token');
-        if (token) {
-            evt.detail.headers['Authorization'] = 'Bearer ' + token;
-        }
-    });
+                    const token = getCookie('token');
+                    const hasToken = !!token;
 
-    // Обработка ответа от logout
-    document.body.addEventListener('htmx:afterRequest', function(evt) {
-        if (evt.detail.successful && evt.detail.pathInfo.requestPath === '/logout') {
-            window.location.href = '/login';
-        }
-    });
+                    console.log('Auth check:', { hasToken, path: currentPath });
 
-    // Обработка ошибок авторизации
-    document.body.addEventListener('htmx:responseError', function(evt) {
-        if (evt.detail.xhr.status === 401) {
-            window.location.href = '/login';
-        }
-    });
-</script>
+                    if (!hasToken && !currentPath.startsWith('/login')) {
+                        console.log('No token, redirecting to login');
+                        window.location.href = '/login';
+                    }
+                }
+
+                // Даём время cookie установиться после редиректа
+                setTimeout(checkAuth, 100);
+
+                // Добавляем токен к запросам HTMX
+                document.body.addEventListener('htmx:configRequest', function(evt) {
+                    function getCookie(name) {
+                        const value = `; ${document.cookie}`;
+                        const parts = value.split(`; ${name}=`);
+                        if (parts.length === 2) return parts.pop().split(';').shift();
+                    }
+
+                    const token = getCookie('token');
+                    if (token) {
+                        evt.detail.headers['Authorization'] = 'Bearer ' + token;
+                    }
+                });
+
+                // Обработка ответа от logout
+                document.body.addEventListener('htmx:afterRequest', function(evt) {
+                    if (evt.detail.successful && evt.detail.pathInfo.requestPath === '/logout') {
+                        window.location.href = '/login';
+                    }
+                });
+
+                // Обработка ошибок авторизации
+                document.body.addEventListener('htmx:responseError', function(evt) {
+                    if (evt.detail.xhr.status === 401) {
+                        window.location.href = '/login';
+                    }
+                });
+            </script>
+
+        </body>
+    </html>
+}
+
+templ Navbar(user *domain.User) {
+    <nav class="bg-gray-800 text-white shadow-lg">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-6">
+                    <a href="/" class="flex items-center space-x-2">
+                        <span class="text-xl font-bold">📨 Yandex Bridge</span>
+                    </a>
+
+                    <div class="hidden md:flex space-x-4">
+                        <a href="/" class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
+                            Дашборд
+                        </a>
+                        <a href="/integrations" class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
+                            Интеграции
+                        </a>
+                    </div>
+                </div>
+
+                if user != nil {
+                    <div class="flex items-center space-x-4">
+                        <div class="text-sm text-right">
+                            <div class="font-medium">{ user.Email }</div>
+                            <div>
+                                if user.Role == "admin" {
+                                    <span class="text-gray-400 text-xs">Администратор</span>
+                                } else {
+                                    <span class="text-gray-400 text-xs">Пользователь</span>
+                                }
+                            </div>
+                        </div>
+
+                        <form hx-post="/logout"
+                              hx-target="body"
+                              hx-push-url="true"
+                              class="inline">
+                            <button type="submit"
+                                    class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm transition">
+                                Выйти
+                            </button>
+                        </form>
+                    </div>
+                } else {
+                    <a href="/login" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm">
+                        Войти
+                    </a>
+                }
+            </div>
+        </div>
+    </nav>
+}
+
+templ Footer() {
+    <footer class="bg-white border-t mt-auto">
+        <div class="container mx-auto px-4 py-4">
+            <p class="text-center text-gray-500 text-sm">
+                © 2026 Yandex Messenger Bridge. Все права защищены.
+            </p>
+        </div>
+    </footer>
+}
