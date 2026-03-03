@@ -232,6 +232,11 @@ func (h *Handler) Logout(c echo.Context) error {
 		HttpOnly: true,
 	})
 
-	// Перенаправляем на страницу входа
-	return c.Redirect(http.StatusSeeOther, "/login")
+	// Возвращаем HTML с очисткой localStorage и редиректом
+	return c.HTML(http.StatusOK, `
+        <script>
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        </script>
+    `)
 }

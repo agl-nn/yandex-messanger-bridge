@@ -24,6 +24,46 @@ templ Base(title string, user *domain.User) {
             </main>
 
             @Footer()
+
+            <script>
+                // Проверка авторизации при загрузке страницы
+                document.addEventListener('DOMContentLoaded', function() {
+                    const token = localStorage.getItem('token');
+                    const currentPath = window.location.pathname;
+
+                    console.log('Auth check:', { token: !!token, path: currentPath });
+
+                    // Если нет токена и мы не на странице логина
+                    if (!token && !currentPath.startsWith('/login')) {
+                        console.log('No token, redirecting to login');
+                        window.location.href = '/login';
+                    }
+                });
+
+                // Добавляем токен к запросам HTMX
+                document.body.addEventListener('htmx:configRequest', function(evt) {
+                    const token = localStorage.getItem('token');
+                    if (token) {
+                        evt.detail.headers['Authorization'] = 'Bearer ' + token;
+                    }
+                });
+
+                // Обработка ответа от логина
+                document.body.addEventListener('htmx:afterRequest', function(evt) {
+                    if (evt.detail.successful && evt.detail.pathInfo.requestPath === '/api/v1/login') {
+                        try {
+                            const response = JSON.parse(evt.detail.xhr.response);
+                            if (response.token) {
+                                localStorage.setItem('token', response.token);
+                                console.log('Token saved, redirecting to dashboard');
+                                window.location.href = '/';
+                            }
+                        } catch (e) {
+                            console.error('Failed to parse login response', e);
+                        }
+                    }
+                });
+            </script>
         </body>
     </html>
 }
@@ -51,7 +91,9 @@ templ Navbar(user *domain.User) {
                     <div class="flex items-center space-x-4">
                         <div class="text-sm text-right">
                             <div class="font-medium">{ user.Email }</div>
-                            <div class="text-gray-400 text-xs">Администратор</div>
+                            <div class="text-gray-400 text-xs">
+                                { if user.Role == "admin" { "Администратор" } else { "Пользователь" } }
+                            </div>
                         </div>
 
                         <form hx-post="/logout"
@@ -72,17 +114,6 @@ templ Navbar(user *domain.User) {
             </div>
         </div>
     </nav>
-}
-
-templ RoleBadge(role string) {
-    switch role {
-    case "admin":
-        <span class="bg-purple-600 text-xs px-2 py-1 rounded-full">Admin</span>
-    case "user":
-        <span class="bg-blue-600 text-xs px-2 py-1 rounded-full">User</span>
-    default:
-        <span class="bg-gray-600 text-xs px-2 py-1 rounded-full">Viewer</span>
-    }
 }
 
 templ Footer() {

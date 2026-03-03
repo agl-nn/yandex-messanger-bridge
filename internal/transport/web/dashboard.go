@@ -19,6 +19,13 @@ func (h *Handler) Dashboard(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "missing token")
 	}
 
+	// Получаем пользователя
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get user")
+		// Продолжаем без пользователя, но будет показана кнопка "Войти"
+	}
+
 	integrations, err := h.repo.FindByUserID(c.Request().Context(), userID)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to load integrations for dashboard")
@@ -38,5 +45,5 @@ func (h *Handler) Dashboard(c echo.Context) error {
 		"today_deliveries":    0,
 	}
 
-	return pages.Dashboard(stats, integrations).Render(c.Request().Context(), c.Response().Writer)
+	return pages.Dashboard(stats, integrations, user).Render(c.Request().Context(), c.Response().Writer)
 }
