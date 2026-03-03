@@ -28,13 +28,23 @@ templ Base(title string, user *domain.User) {
             <script>
                 // Проверка авторизации при загрузке страницы
                 document.addEventListener('DOMContentLoaded', function() {
-                    const token = localStorage.getItem('token');
                     const currentPath = window.location.pathname;
 
-                    console.log('Auth check:', { token: !!token, path: currentPath });
+                    // Функция для получения cookie
+                    function getCookie(name) {
+                        const value = `; ${document.cookie}`;
+                        const parts = value.split(`; ${name}=`);
+                        if (parts.length === 2) return parts.pop().split(';').shift();
+                    }
+
+                    // Проверяем, есть ли cookie с токеном
+                    const token = getCookie('token');
+                    const hasToken = !!token;
+
+                    console.log('Auth check:', { hasToken, path: currentPath });
 
                     // Если нет токена и мы не на странице логина
-                    if (!token && !currentPath.startsWith('/login')) {
+                    if (!hasToken && !currentPath.startsWith('/login')) {
                         console.log('No token, redirecting to login');
                         window.location.href = '/login';
                     }
@@ -42,7 +52,14 @@ templ Base(title string, user *domain.User) {
 
                 // Добавляем токен к запросам HTMX
                 document.body.addEventListener('htmx:configRequest', function(evt) {
-                    const token = localStorage.getItem('token');
+                    // Функция для получения cookie
+                    function getCookie(name) {
+                        const value = `; ${document.cookie}`;
+                        const parts = value.split(`; ${name}=`);
+                        if (parts.length === 2) return parts.pop().split(';').shift();
+                    }
+
+                    const token = getCookie('token');
                     if (token) {
                         evt.detail.headers['Authorization'] = 'Bearer ' + token;
                     }
@@ -54,13 +71,28 @@ templ Base(title string, user *domain.User) {
                         try {
                             const response = JSON.parse(evt.detail.xhr.response);
                             if (response.token) {
-                                localStorage.setItem('token', response.token);
-                                console.log('Token saved, redirecting to dashboard');
+                                console.log('Login successful, redirecting to dashboard');
                                 window.location.href = '/';
                             }
                         } catch (e) {
                             console.error('Failed to parse login response', e);
                         }
+                    }
+                });
+
+                // Обработка ответа от logout
+                document.body.addEventListener('htmx:afterRequest', function(evt) {
+                    if (evt.detail.successful && evt.detail.pathInfo.requestPath === '/logout') {
+                        console.log('Logout successful');
+                        window.location.href = '/login';
+                    }
+                });
+
+                // Обработка ошибок авторизации
+                document.body.addEventListener('htmx:responseError', function(evt) {
+                    if (evt.detail.xhr.status === 401) {
+                        console.log('Unauthorized, redirecting to login');
+                        window.location.href = '/login';
                     }
                 });
             </script>
@@ -91,12 +123,12 @@ templ Navbar(user *domain.User) {
                     <div class="flex items-center space-x-4">
                         <div class="text-sm text-right">
                             <div class="font-medium">{ user.Email }</div>
-                            <div class="text-gray-400 text-xs">
-                               if user.Role == "admin" {
-                                   <span class="text-gray-400 text-xs">Администратор</span>
-                               } else {
-                                   <span class="text-gray-400 text-xs">Пользователь</span>
-                               }
+                            <div>
+                                if user.Role == "admin" {
+                                    <span class="text-gray-400 text-xs">Администратор</span>
+                                } else {
+                                    <span class="text-gray-400 text-xs">Пользователь</span>
+                                }
                             </div>
                         </div>
 
