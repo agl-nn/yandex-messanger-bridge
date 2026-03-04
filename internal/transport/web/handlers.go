@@ -139,6 +139,16 @@ func (h *Handler) UpdateIntegration(c echo.Context) error {
 	id := c.Param("id")
 	userID := getUserIDFromContext(c)
 
+	// Логируем входящий запрос
+	log.Info().
+		Str("method", c.Request().Method).
+		Str("_method", c.FormValue("_method")).
+		Str("id", id).
+		Str("name", c.FormValue("name")).
+		Str("source_type", c.FormValue("source_type")).
+		Bool("is_active", c.FormValue("is_active") == "on").
+		Msg("Update request received")
+
 	existing, err := h.repo.FindByID(c.Request().Context(), id)
 	if err != nil {
 		return c.String(http.StatusNotFound, "Integration not found")
