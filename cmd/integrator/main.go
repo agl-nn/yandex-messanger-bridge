@@ -63,7 +63,10 @@ func main() {
 	// Создаем Echo сервер
 	e := echo.New()
 
-	// Middleware
+	// Middleware (ВАЖЕН ПОРЯДОК!)
+	e.Use(middleware.MethodOverrideWithConfig(middleware.MethodOverrideConfig{
+		Getter: middleware.MethodFromForm("_method"),
+	}))
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
@@ -82,7 +85,7 @@ func main() {
 	webHandler := web.NewHandler(integrationRepo, encryptor)
 	e.GET("/login", webHandler.LoginPage)
 
-	// Защищенные API эндпоинты (с токеном в заголовке)
+	// Защищенные API эндпоинты
 	authMw := authMiddleware.NewAuthMiddleware(cfg.JWTSecret)
 	apiGroup := e.Group("/api/v1")
 	apiGroup.Use(authMw.RequireAuth)
@@ -112,7 +115,6 @@ func main() {
 		webGroup.GET("/integrations/:id/logs", webHandler.IntegrationLogs)
 		webGroup.POST("/integrations/:id/test", webHandler.TestIntegration)
 		webGroup.POST("/logout", webHandler.Logout)
-		//webGroup.GET("/integrations/source-config-fields", webHandler.SourceConfigFields)
 	}
 
 	// Статические файлы
