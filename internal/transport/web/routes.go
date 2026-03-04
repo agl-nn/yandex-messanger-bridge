@@ -11,8 +11,9 @@ func SetupRoutes(
 	e *echo.Group,
 	repo _interface.IntegrationRepository,
 	authMiddleware *middleware.AuthMiddleware,
+	encryptor *encryption.Encryptor,
 ) {
-	handler := NewHandler(repo)
+	handler := NewHandler(repo, encryptor)
 
 	// Публичные маршруты
 	e.GET("/login", handler.LoginPage)
