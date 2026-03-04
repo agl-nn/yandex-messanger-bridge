@@ -6,8 +6,8 @@ import (
     "yandex-messenger-bridge/internal/web/templates/components"
 )
 
-templ IntegrationsPage(integrations []*domain.Integration, baseURL string) {
-    @templates.Base("Интеграции", nil) {
+templ IntegrationsPage(integrations []*domain.Integration, baseURL string, user *domain.User) {
+    @templates.Base("Интеграции", user) {
         <div class="space-y-6">
             <div class="flex justify-between items-center">
                 <h1 class="text-3xl font-bold text-gray-900">Интеграции</h1>

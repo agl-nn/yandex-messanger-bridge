@@ -2,11 +2,9 @@
 package web
 
 import (
-	//"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
-	//"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -23,14 +21,14 @@ import (
 // Handler - обработчик веб-интерфейса
 type Handler struct {
 	repo      repoInterface.IntegrationRepository
-	encryptor *encryption.Encryptor // добавлено
+	encryptor *encryption.Encryptor
 }
 
 // NewHandler создает новый обработчик
 func NewHandler(repo repoInterface.IntegrationRepository, encryptor *encryption.Encryptor) *Handler {
 	return &Handler{
 		repo:      repo,
-		encryptor: encryptor, // добавлено
+		encryptor: encryptor,
 	}
 }
 
@@ -43,6 +41,13 @@ func (h *Handler) LoginPage(c echo.Context) error {
 func (h *Handler) IntegrationsPage(c echo.Context) error {
 	userID := getUserIDFromContext(c)
 
+	// Получаем пользователя для передачи в шаблон
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get user")
+		// продолжаем без пользователя
+	}
+
 	integrations, err := h.repo.FindByUserID(c.Request().Context(), userID)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to load integrations")
@@ -54,7 +59,7 @@ func (h *Handler) IntegrationsPage(c echo.Context) error {
 		integrations[i].WebhookURL = baseURL + "/webhook/" + integrations[i].ID
 	}
 
-	return components.IntegrationsTable(integrations, baseURL).Render(c.Request().Context(), c.Response().Writer)
+	return pages.IntegrationsPage(integrations, baseURL, user).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // NewIntegrationForm отображает форму создания новой интеграции
@@ -96,7 +101,7 @@ func (h *Handler) CreateIntegration(c echo.Context) error {
 		SourceConfig: sourceConfig,
 		DestinationConfig: domain.DestinationConfig{
 			ChatID:   chatID,
-			BotToken: encryptedToken, // сохраняем зашифрованный токен
+			BotToken: encryptedToken,
 		},
 		IsActive: isActive,
 	}
