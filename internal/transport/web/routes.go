@@ -5,6 +5,7 @@ import (
 
 	"yandex-messenger-bridge/internal/repository/interface"
 	"yandex-messenger-bridge/internal/transport/middleware"
+	"yandex-messenger-bridge/internal/service/encryption"
 )
 
 func SetupRoutes(
