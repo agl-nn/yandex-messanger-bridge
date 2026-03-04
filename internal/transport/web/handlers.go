@@ -69,6 +69,9 @@ func (h *Handler) NewIntegrationForm(c echo.Context) error {
 
 // CreateIntegration создает новую интеграцию
 func (h *Handler) CreateIntegration(c echo.Context) error {
+	log.Info().
+		Str("_method", c.FormValue("_method")).
+		Msg("🟢 CREATE INTEGRATION CALLED")
 	userID := getUserIDFromContext(c)
 	log.Info().Str("user_id", userID).Msg("Creating integration")
 
