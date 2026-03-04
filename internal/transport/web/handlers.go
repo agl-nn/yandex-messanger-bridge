@@ -37,15 +37,49 @@ func (h *Handler) LoginPage(c echo.Context) error {
 	return pages.LoginPage().Render(c.Request().Context(), c.Response().Writer)
 }
 
+// Dashboard отображает главную страницу с дашбордом
+func (h *Handler) Dashboard(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+	log.Info().Str("user_id", userID).Msg("Dashboard accessed")
+
+	if userID == "" {
+		return c.String(http.StatusUnauthorized, "missing token")
+	}
+
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get user")
+	}
+
+	integrations, err := h.repo.FindByUserID(c.Request().Context(), userID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to load integrations for dashboard")
+		return c.String(http.StatusInternalServerError, "Failed to load data")
+	}
+
+	activeCount := 0
+	for _, i := range integrations {
+		if i.IsActive {
+			activeCount++
+		}
+	}
+
+	stats := map[string]interface{}{
+		"total_integrations":  len(integrations),
+		"active_integrations": activeCount,
+		"today_deliveries":    0,
+	}
+
+	return pages.Dashboard(stats, integrations, user).Render(c.Request().Context(), c.Response().Writer)
+}
+
 // IntegrationsPage отображает страницу со списком интеграций
 func (h *Handler) IntegrationsPage(c echo.Context) error {
 	userID := getUserIDFromContext(c)
 
-	// Получаем пользователя для передачи в шаблон
 	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get user")
-		// продолжаем без пользователя
 	}
 
 	integrations, err := h.repo.FindByUserID(c.Request().Context(), userID)
@@ -72,6 +106,7 @@ func (h *Handler) CreateIntegration(c echo.Context) error {
 	log.Info().
 		Str("_method", c.FormValue("_method")).
 		Msg("🟢 CREATE INTEGRATION CALLED")
+
 	userID := getUserIDFromContext(c)
 	log.Info().Str("user_id", userID).Msg("Creating integration")
 
@@ -139,10 +174,22 @@ func (h *Handler) EditIntegrationForm(c echo.Context) error {
 
 // UpdateIntegration обновляет интеграцию
 func (h *Handler) UpdateIntegration(c echo.Context) error {
+	// Логируем ВСЕ параметры запроса
+	log.Info().
+		Str("method", c.Request().Method).
+		Str("_method", c.FormValue("_method")).
+		Str("id_from_param", c.Param("id")).
+		Str("id_from_form", c.FormValue("id")).
+		Str("name", c.FormValue("name")).
+		Str("source_type", c.FormValue("source_type")).
+		Str("chat_id", c.FormValue("chat_id")).
+		Str("is_active", c.FormValue("is_active")).
+		Msg("🔵 UPDATE INTEGRATION CALLED - RAW REQUEST")
+
 	id := c.Param("id")
 	userID := getUserIDFromContext(c)
 
-	// Логируем входящий запрос
+	// Логируем уже обработанные данные
 	log.Info().
 		Str("method", c.Request().Method).
 		Str("_method", c.FormValue("_method")).
