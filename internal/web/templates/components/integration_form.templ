@@ -15,6 +15,7 @@ templ IntegrationForm(integration *domain.Integration) {
                       hx-on::after-request="if(event.detail.successful) { document.getElementById('modal').remove(); window.location.reload(); }">
 
                     @HiddenID(integration)
+                    @MethodField(integration)
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -129,5 +130,10 @@ templ ActiveCheckbox(integration *domain.Integration) {
         <input type="checkbox" name="is_active" class="rounded border-gray-300 text-blue-600 shadow-sm" checked/>
     } else {
         <input type="checkbox" name="is_active" class="rounded border-gray-300 text-blue-600 shadow-sm"/>
+    }
+}
+templ MethodField(integration *domain.Integration) {
+    if integration != nil {
+        <input type="hidden" name="_method" value="PUT"/>
     }
 }
