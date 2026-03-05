@@ -138,6 +138,7 @@ func (h *Handler) EditIntegrationForm(c echo.Context) error {
 
 // UpdateIntegration обновляет интеграцию
 func (h *Handler) UpdateIntegration(c echo.Context) error {
+	log.Info().Msg("🚀🚀🚀 UpdateIntegration HANDLER CALLED 🚀🚀🚀")
 	// Логируем ВСЕ параметры запроса
 	log.Info().
 		Str("method", c.Request().Method).
