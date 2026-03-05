@@ -64,9 +64,9 @@ func main() {
 	e := echo.New()
 
 	// Middleware (ВАЖЕН ПОРЯДОК!)
-	e.Use(middleware.MethodOverrideWithConfig(middleware.MethodOverrideConfig{
-		Getter: middleware.MethodFromForm("_method"),
-	}))
+	//e.Use(middleware.MethodOverrideWithConfig(middleware.MethodOverrideConfig{
+	//	Getter: middleware.MethodFromForm("_method"),
+	//}))
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
