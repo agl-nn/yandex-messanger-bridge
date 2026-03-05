@@ -41,6 +41,11 @@ func (m *AuthMiddleware) RequireAuth(next echo.HandlerFunc) echo.HandlerFunc {
 // CookieAuth проверяет токен в cookie (для веб-интерфейса) с редиректом для браузеров
 func (m *AuthMiddleware) CookieAuth(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		log.Info().
+			Str("method", c.Request().Method).
+			Str("path", c.Request().URL.Path).
+			Str("cookie", c.Request().Header.Get("Cookie")).
+			Msg("🔍 CookieAuth middleware")
 		// Проверка токена в заголовке (для API)
 		token := extractToken(c.Request())
 		if token != "" {
