@@ -100,7 +100,14 @@ func main() {
 		apiGroup.POST("/integrations/:id/test", integrationAPI.Test)
 		apiGroup.GET("/me", authAPI.Me)
 	}
-
+	// ТЕСТОВЫЙ ОБРАБОТЧИК - ВРЕМЕННО
+	e.PUT("/integrations/:id", func(c echo.Context) error {
+		log.Info().
+			Str("id", c.Param("id")).
+			Str("handler", "DIRECT_ECHO").
+			Msg("🔥🔥🔥 DIRECT ECHO HANDLER CALLED 🔥🔥🔥")
+		return c.String(http.StatusOK, "Direct echo handler OK")
+	})
 	// Защищенные веб-эндпоинты (с токеном в cookie)
 	webGroup := e.Group("")
 	webGroup.Use(authMw.CookieAuth)
