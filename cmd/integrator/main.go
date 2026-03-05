@@ -64,9 +64,16 @@ func main() {
 	e := echo.New()
 
 	// Middleware (ВАЖЕН ПОРЯДОК!)
-	//e.Use(middleware.MethodOverrideWithConfig(middleware.MethodOverrideConfig{
-	//	Getter: middleware.MethodFromForm("_method"),
-	//}))
+	e.Use(middleware.MethodOverrideWithConfig(middleware.MethodOverrideConfig{
+		Getter: func(c echo.Context) string {
+			// Сначала проверяем заголовок от HTMX
+			if method := c.Request().Header.Get("X-HTTP-Method-Override"); method != "" {
+				return method
+			}
+			// Затем проверяем поле формы (для _method)
+			return c.FormValue("_method")
+		},
+	}))
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())

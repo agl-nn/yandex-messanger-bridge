@@ -75,11 +75,9 @@ templ CreateForm() {
 }
 
 templ EditForm(integration *domain.Integration) {
-    <form hx-post={ "/integrations/" + integration.ID }
+    <form hx-put={ "/integrations/" + integration.ID }
           hx-swap="none"
           hx-on::after-request="if(event.detail.successful) { document.getElementById('modal').remove(); window.location.reload(); }">
-
-        <input type="hidden" name="_method" value="PUT"/>
 
         <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">
