@@ -116,7 +116,10 @@ func main() {
 		webGroup.POST("/integrations/:id/test", webHandler.TestIntegration)
 		webGroup.POST("/logout", webHandler.Logout)
 	}
-
+	// Отладка: показать все зарегистрированные маршруты
+	for _, route := range e.Routes() {
+		log.Info().Str("method", route.Method).Str("path", route.Path).Msg("Registered route")
+	}
 	// Статические файлы
 	e.Static("/static", "internal/web/static")
 
