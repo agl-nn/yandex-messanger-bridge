@@ -13,6 +13,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/rs/zerolog/log"
 
 	"yandex-messenger-bridge/config"
 	"yandex-messenger-bridge/internal/repository/postgres"
