@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -32,13 +31,13 @@ func main() {
 	// Подключаемся к БД
 	db, err := sqlx.Connect("postgres", cfg.DatabaseDSN)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal().Err(err).Msg("Failed to connect to database")
 	}
 	defer db.Close()
 
 	// Выполняем миграции
 	if err := postgres.RunMigrations(db.DB, cfg.DatabaseDSN); err != nil {
-		log.Fatal("Failed to run migrations:", err)
+		log.Fatal().Err(err).Msg("Failed to run migrations")
 	}
 
 	// Инициализируем репозитории
@@ -117,12 +116,14 @@ func main() {
 		webGroup.POST("/integrations/:id/test", webHandler.TestIntegration)
 		webGroup.POST("/logout", webHandler.Logout)
 	}
+
+	// Статические файлы
+	e.Static("/static", "internal/web/static")
+
 	// Отладка: показать все зарегистрированные маршруты
 	for _, route := range e.Routes() {
 		log.Info().Str("method", route.Method).Str("path", route.Path).Msg("Registered route")
 	}
-	// Статические файлы
-	e.Static("/static", "internal/web/static")
 
 	// Graceful shutdown
 	go func() {
@@ -138,6 +139,6 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := e.Shutdown(ctx); err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Failed to shutdown server")
 	}
 }
