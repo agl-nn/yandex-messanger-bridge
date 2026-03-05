@@ -10,63 +10,124 @@ templ IntegrationForm(integration *domain.Integration) {
             <div class="mt-3">
                 @FormHeader(integration)
 
-                <form hx-post="/integrations"
-                      hx-swap="none"
-                      hx-on::after-request="if(event.detail.successful) { document.getElementById('modal').remove(); window.location.reload(); }">
-
-                    @HiddenID(integration)
-                    @MethodField(integration)
-
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Название
-                        </label>
-                        @NameInput(integration)
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Тип источника
-                        </label>
-                        @SourceTypeSelect(integration)
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            ID чата
-                        </label>
-                        @ChatIDInput(integration)
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Токен бота
-                        </label>
-                        @TokenInput(integration)
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="flex items-center">
-                            @ActiveCheckbox(integration)
-                            <span class="ml-2 text-sm text-gray-700">Интеграция активна</span>
-                        </label>
-                    </div>
-
-                    <div class="flex justify-end space-x-3">
-                        <button type="button"
-                                onclick="document.getElementById('modal').remove()"
-                                class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition">
-                            Отмена
-                        </button>
-                        <button type="submit"
-                                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
-                            Сохранить
-                        </button>
-                    </div>
-                </form>
+                if integration == nil {
+                    @CreateForm()
+                } else {
+                    @EditForm(integration)
+                }
             </div>
         </div>
     </div>
+}
+
+templ CreateForm() {
+    <form hx-post="/integrations"
+          hx-swap="none"
+          hx-on::after-request="if(event.detail.successful) { document.getElementById('modal').remove(); window.location.reload(); }">
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Название
+            </label>
+            @NameInput(nil)
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Тип источника
+            </label>
+            @SourceTypeSelect(nil)
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                ID чата
+            </label>
+            @ChatIDInput(nil)
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Токен бота
+            </label>
+            @TokenInput(nil)
+        </div>
+
+        <div class="mb-4">
+            <label class="flex items-center">
+                @ActiveCheckbox(nil)
+                <span class="ml-2 text-sm text-gray-700">Интеграция активна</span>
+            </label>
+        </div>
+
+        <div class="flex justify-end space-x-3">
+            <button type="button"
+                    onclick="document.getElementById('modal').remove()"
+                    class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition">
+                Отмена
+            </button>
+            <button type="submit"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                Создать
+            </button>
+        </div>
+    </form>
+}
+
+templ EditForm(integration *domain.Integration) {
+    <form hx-post={ "/integrations/" + integration.ID }
+          hx-swap="none"
+          hx-on::after-request="if(event.detail.successful) { document.getElementById('modal').remove(); window.location.reload(); }">
+
+        <input type="hidden" name="_method" value="PUT"/>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Название
+            </label>
+            @NameInput(integration)
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Тип источника
+            </label>
+            @SourceTypeSelect(integration)
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                ID чата
+            </label>
+            @ChatIDInput(integration)
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Токен бота
+            </label>
+            @TokenInput(integration)
+        </div>
+
+        <div class="mb-4">
+            <label class="flex items-center">
+                @ActiveCheckbox(integration)
+                <span class="ml-2 text-sm text-gray-700">Интеграция активна</span>
+            </label>
+        </div>
+
+        <div class="flex justify-end space-x-3">
+            <button type="button"
+                    onclick="document.getElementById('modal').remove()"
+                    class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition">
+                Отмена
+            </button>
+            <button type="submit"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                Сохранить
+            </button>
+        </div>
+    </form>
 }
 
 templ FormHeader(integration *domain.Integration) {
@@ -74,12 +135,6 @@ templ FormHeader(integration *domain.Integration) {
         <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Редактирование интеграции</h3>
     } else {
         <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Новая интеграция</h3>
-    }
-}
-
-templ HiddenID(integration *domain.Integration) {
-    if integration != nil {
-        <input type="hidden" name="id" value={ integration.ID }/>
     }
 }
 
@@ -130,10 +185,5 @@ templ ActiveCheckbox(integration *domain.Integration) {
         <input type="checkbox" name="is_active" class="rounded border-gray-300 text-blue-600 shadow-sm" checked/>
     } else {
         <input type="checkbox" name="is_active" class="rounded border-gray-300 text-blue-600 shadow-sm"/>
-    }
-}
-templ MethodField(integration *domain.Integration) {
-    if integration != nil {
-        <input type="hidden" name="_method" value="PUT"/>
     }
 }
