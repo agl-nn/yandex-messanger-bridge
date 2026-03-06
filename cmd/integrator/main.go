@@ -105,6 +105,9 @@ func main() {
 		apiGroup.DELETE("/integrations/:id", integrationAPI.Delete)
 		apiGroup.GET("/integrations/:id/logs", integrationAPI.GetLogs)
 		apiGroup.POST("/integrations/:id/test", integrationAPI.Test)
+		apiGroup.POST("/integrations/jira", integrationAPI.CreateJira)
+		apiGroup.POST("/integrations/gitlab", integrationAPI.CreateGitLab)
+		apiGroup.POST("/integrations/custom", integrationAPI.CreateCustom)
 		apiGroup.GET("/me", authAPI.Me)
 	}
 	// ТЕСТОВЫЙ ОБРАБОТЧИК - ВРЕМЕННО

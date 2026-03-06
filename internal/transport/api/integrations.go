@@ -199,3 +199,75 @@ func (api *IntegrationAPI) Test(c echo.Context) error {
 		"message": "Test message sent",
 	})
 }
+
+// CreateJira создает новую Jira интеграцию
+func (api *IntegrationAPI) CreateJira(c echo.Context) error {
+	userID := c.Get("user_id").(string)
+
+	var req struct {
+		Name     string `json:"name"`
+		ChatID   string `json:"chat_id"`
+		BotToken string `json:"bot_token"`
+	}
+
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request")
+	}
+
+	// TODO: реализовать сохранение
+	log.Info().Str("user_id", userID).Str("name", req.Name).Msg("Creating Jira integration")
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Jira integration created (stub)",
+		"id":      "temp-id",
+	})
+}
+
+// CreateGitLab создает новую GitLab интеграцию
+func (api *IntegrationAPI) CreateGitLab(c echo.Context) error {
+	userID := c.Get("user_id").(string)
+
+	var req struct {
+		Name     string `json:"name"`
+		ChatID   string `json:"chat_id"`
+		BotToken string `json:"bot_token"`
+	}
+
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request")
+	}
+
+	log.Info().Str("user_id", userID).Str("name", req.Name).Msg("Creating GitLab integration")
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "GitLab integration created (stub)",
+		"id":      "temp-id",
+	})
+}
+
+// CreateCustom создает новую кастомную интеграцию с Liquid-шаблоном
+func (api *IntegrationAPI) CreateCustom(c echo.Context) error {
+	userID := c.Get("user_id").(string)
+
+	var req struct {
+		Name         string `json:"name"`
+		ChatID       string `json:"chat_id"`
+		BotToken     string `json:"bot_token"`
+		TemplateText string `json:"template_text"`
+	}
+
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request")
+	}
+
+	log.Info().
+		Str("user_id", userID).
+		Str("name", req.Name).
+		Str("template_length", fmt.Sprintf("%d", len(req.TemplateText))).
+		Msg("Creating custom integration")
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Custom integration created (stub)",
+		"id":      "temp-id",
+	})
+}
