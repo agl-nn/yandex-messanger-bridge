@@ -4,9 +4,11 @@ RUN apk add --no-cache git
 
 WORKDIR /app
 
-# Копируем go.mod и go.sum
-COPY go.mod go.sum ./
-RUN go mod download
+# Копируем только go.mod
+COPY go.mod ./
+
+# Скачиваем зависимости (создаст go.sum в контейнере)
+RUN go mod download && go mod tidy
 
 # Копируем остальной код
 COPY . .
