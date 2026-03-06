@@ -4,9 +4,9 @@ package api
 import (
 	"net/http"
 	"strconv"
-
+	"fmt"
 	"github.com/labstack/echo/v4"
-
+	"github.com/rs/zerolog/log"
 	"yandex-messenger-bridge/internal/domain"
 	"yandex-messenger-bridge/internal/repository/interface"
 	"yandex-messenger-bridge/internal/service/encryption"
