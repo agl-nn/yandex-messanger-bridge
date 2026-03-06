@@ -229,7 +229,7 @@ templ CustomTemplateField(integration *domain.Integration) {
                       placeholder='{% if status == "resolved" %}✅{% else %}🚨{% endif %} *{{ alertname }}*
 Instance: {{ instance }}
 Severity: {{ severity }}
-{% if description %}{{ description }}{% endif %}'>@GetTemplateText(integration)</textarea>
+{% if description %}{{ description }}{% endif %}'></textarea>
             <p class="text-xs text-gray-500 mt-1">
                 Доступны все поля из входящего JSON. Пример: {{ alertname }}, {{ status }}, {{ severity }}
             </p>
@@ -248,9 +248,4 @@ Severity: {{ severity }}
     } else {
         <div id="custom-template-field"></div>
     }
-}
-
-templ GetTemplateText(integration *domain.Integration) string {
-    // Здесь потом будем загружать текст шаблона из БД
-    return ""
 }
