@@ -31,4 +31,13 @@ type IntegrationRepository interface {
 	FindAPIKeyByHash(ctx context.Context, hash string) (*domain.APIKey, error)
 	UpdateAPIKeyLastUsed(ctx context.Context, id string) error
 	DeleteAPIKey(ctx context.Context, id string, userID string) error
+
+	// Для работы с шаблонами (НОВЫЕ МЕТОДЫ)
+	CreateTemplate(ctx context.Context, template *domain.Template) error
+	UpdateTemplate(ctx context.Context, template *domain.Template) error
+	GetTemplateByIntegrationID(ctx context.Context, integrationID string) (*domain.Template, error)
+	DeleteTemplate(ctx context.Context, id string) error
+
+	// Новый метод для загрузки интеграции с шаблоном
+	FindWithTemplate(ctx context.Context, integrationID string) (*domain.Integration, *domain.Template, error)
 }

@@ -484,3 +484,121 @@ func (r *IntegrationRepository) DeleteAPIKey(ctx context.Context, id string, use
 
 	return nil
 }
+
+// ================ Методы для работы с шаблонами ================
+
+// CreateTemplate создает новый шаблон
+func (r *IntegrationRepository) CreateTemplate(ctx context.Context, template *domain.Template) error {
+	query := `
+        INSERT INTO templates (id, integration_id, template_text, sample_payload, created_at, updated_at)
+        VALUES (gen_random_uuid(), $1, $2, $3, NOW(), NOW())
+        RETURNING id, created_at, updated_at
+    `
+
+	return r.db.QueryRowContext(ctx, query,
+		template.IntegrationID,
+		template.TemplateText,
+		template.SamplePayload,
+	).Scan(&template.ID, &template.CreatedAt, &template.UpdatedAt)
+}
+
+// UpdateTemplate обновляет шаблон
+func (r *IntegrationRepository) UpdateTemplate(ctx context.Context, template *domain.Template) error {
+	query := `
+        UPDATE templates 
+        SET template_text = $1, sample_payload = $2, updated_at = NOW()
+        WHERE id = $3
+    `
+
+	result, err := r.db.ExecContext(ctx, query,
+		template.TemplateText,
+		template.SamplePayload,
+		template.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
+// GetTemplateByIntegrationID получает шаблон по ID интеграции
+func (r *IntegrationRepository) GetTemplateByIntegrationID(ctx context.Context, integrationID string) (*domain.Template, error) {
+	var template domain.Template
+	var samplePayload []byte
+
+	query := `
+        SELECT id, integration_id, template_text, sample_payload, created_at, updated_at
+        FROM templates
+        WHERE integration_id = $1
+    `
+
+	err := r.db.QueryRowContext(ctx, query, integrationID).Scan(
+		&template.ID,
+		&template.IntegrationID,
+		&template.TemplateText,
+		&samplePayload,
+		&template.CreatedAt,
+		&template.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if samplePayload != nil {
+		template.SamplePayload = samplePayload
+	}
+
+	return &template, nil
+}
+
+// DeleteTemplate удаляет шаблон
+func (r *IntegrationRepository) DeleteTemplate(ctx context.Context, id string) error {
+	query := `DELETE FROM templates WHERE id = $1`
+
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
+// FindWithTemplate загружает интеграцию вместе с шаблоном (если есть)
+func (r *IntegrationRepository) FindWithTemplate(ctx context.Context, integrationID string) (*domain.Integration, *domain.Template, error) {
+	// Сначала загружаем интеграцию
+	integration, err := r.FindByID(ctx, integrationID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Если интеграция кастомная, загружаем шаблон
+	var template *domain.Template
+	if integration.IsCustom {
+		tpl, err := r.GetTemplateByIntegrationID(ctx, integrationID)
+		if err != nil && err != sql.ErrNoRows {
+			return nil, nil, err
+		}
+		if err == nil {
+			template = tpl
+		}
+	}
+
+	return integration, template, nil
+}
