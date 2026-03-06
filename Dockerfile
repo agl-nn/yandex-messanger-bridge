@@ -13,29 +13,17 @@ RUN go mod download
 # Копируем остальной код
 COPY . .
 
-# Диагностика: показываем go.mod до добавления templ
-RUN echo "=== go.mod BEFORE go get ===" && cat go.mod
-
-# Добавляем templ в go.mod
+# Добавляем templ в go.mod (ВАЖНО!)
 RUN go get github.com/a-h/templ
-
-# Диагностика: показываем go.mod после добавления templ
-RUN echo "=== go.mod AFTER go get ===" && cat go.mod
-
-# Теперь выполняем go mod tidy
-RUN go mod tidy
-
-# Диагностика: показываем go.mod после tidy
-RUN echo "=== go.mod AFTER tidy ===" && cat go.mod
-
-# Проверяем, есть ли templ в списке модулей
-RUN go list -m all | grep templ || echo "❌ templ NOT FOUND in modules"
 
 # Устанавливаем templ как бинарник
 RUN go install github.com/a-h/templ/cmd/templ@v0.3.1001
 
-# Генерируем шаблоны
+# Генерируем шаблоны (ТЕПЕРЬ templ есть в go.mod)
 RUN templ generate
+
+# Теперь выполняем go mod tidy (после генерации шаблонов)
+RUN go mod tidy
 
 # Собираем приложение
 RUN CGO_ENABLED=0 GOOS=linux go build -o integrator ./cmd/integrator
