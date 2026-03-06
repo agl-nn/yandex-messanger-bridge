@@ -13,10 +13,13 @@ RUN go mod download
 # Копируем остальной код
 COPY . .
 
-# Теперь выполняем go mod tidy (после копирования всего кода)
+# Добавляем templ в go.mod (ВАЖНО!)
+RUN go get github.com/a-h/templ
+
+# Теперь выполняем go mod tidy
 RUN go mod tidy
 
-# Устанавливаем templ
+# Устанавливаем templ как бинарник
 RUN go install github.com/a-h/templ/cmd/templ@v0.3.1001
 
 # Генерируем шаблоны
