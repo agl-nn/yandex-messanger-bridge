@@ -7,11 +7,14 @@ WORKDIR /app
 # Копируем только go.mod
 COPY go.mod ./
 
-# Скачиваем зависимости (создаст go.sum в контейнере)
-RUN go mod download && go mod tidy
+# Скачиваем зависимости
+RUN go mod download
 
 # Копируем остальной код
 COPY . .
+
+# Теперь выполняем go mod tidy (после копирования всего кода)
+RUN go mod tidy
 
 # Устанавливаем templ
 RUN go install github.com/a-h/templ/cmd/templ@v0.3.1001
