@@ -8,6 +8,7 @@ require (
     github.com/jmoiron/sqlx v1.4.0
     github.com/labstack/echo/v4 v4.12.0
     github.com/lib/pq v1.10.9
+    github.com/osteele/liquid v1.6.0
     github.com/rs/zerolog v1.33.0
     github.com/spf13/viper v1.19.0
     golang.org/x/crypto v0.25.0

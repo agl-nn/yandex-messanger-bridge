@@ -1,11 +1,11 @@
 package domain
 
 import (
-	"time"
 	"encoding/json"
+	"time"
 )
 
-// User - пользователь системы (оставляем только здесь)
+// User - пользователь системы
 type User struct {
 	ID           string    `db:"id" json:"id"`
 	Email        string    `db:"email" json:"email"`
@@ -28,6 +28,8 @@ type Integration struct {
 	DestinationType   string                 `db:"destination_type" json:"destination_type"`
 	DestinationConfig DestinationConfig      `db:"destination_config" json:"destination_config"`
 	IsActive          bool                   `db:"is_active" json:"is_active"`
+	IsCustom          bool                   `db:"is_custom" json:"is_custom"`
+	TemplateID        *string                `db:"template_id" json:"template_id,omitempty"`
 	CreatedAt         time.Time              `db:"created_at" json:"created_at"`
 	UpdatedAt         time.Time              `db:"updated_at" json:"updated_at"`
 	WebhookURL        string                 `db:"-" json:"webhook_url"`
@@ -61,4 +63,14 @@ type APIKey struct {
 	LastUsedAt *time.Time `db:"last_used_at" json:"last_used_at"`
 	CreatedAt  time.Time  `db:"created_at" json:"created_at"`
 	ExpiresAt  *time.Time `db:"expires_at" json:"expires_at"`
+}
+
+// Template - кастомный шаблон для Liquid
+type Template struct {
+	ID            string          `db:"id" json:"id"`
+	IntegrationID string          `db:"integration_id" json:"integration_id"`
+	TemplateText  string          `db:"template_text" json:"template_text"`
+	SamplePayload json.RawMessage `db:"sample_payload" json:"sample_payload,omitempty"`
+	CreatedAt     time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time       `db:"updated_at" json:"updated_at"`
 }
