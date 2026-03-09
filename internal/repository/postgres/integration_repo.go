@@ -514,6 +514,7 @@ func (r *IntegrationRepository) CreateTemplate(ctx context.Context, template *do
         RETURNING id, created_at, updated_at
     `
 
+	// Передаём 7 параметров
 	return r.db.QueryRowContext(ctx, query,
 		template.Name,
 		template.Description,
@@ -521,7 +522,7 @@ func (r *IntegrationRepository) CreateTemplate(ctx context.Context, template *do
 		template.TemplateText,
 		template.IsPublic,
 		template.CreatedBy,
-		template.SamplePayload,
+		nil, // ← 7-й параметр - sample_payload = NULL
 	).Scan(&template.ID, &template.CreatedAt, &template.UpdatedAt)
 }
 
