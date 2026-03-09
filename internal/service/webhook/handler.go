@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"time"
+	"strings"
 
 	"github.com/osteele/liquid"
 	"github.com/rs/zerolog/log"
