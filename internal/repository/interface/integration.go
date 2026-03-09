@@ -54,4 +54,6 @@ type IntegrationRepository interface {
 	FindWithTemplate(ctx context.Context, integrationID string) (*domain.Integration, *domain.Template, error)
 	// GetInstanceByIDPublic получает экземпляр по ID без проверки user_id (для вебхуков)
 	GetInstanceByIDPublic(ctx context.Context, id string) (*domain.IntegrationInstance, error)
+	// UpdateInstanceLastWebhook обновляет поля последнего вебхука
+	UpdateInstanceLastWebhook(ctx context.Context, instanceID string, headers, body json.RawMessage, lastAt time.Time) error
 }

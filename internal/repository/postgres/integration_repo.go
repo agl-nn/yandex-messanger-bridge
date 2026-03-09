@@ -1038,3 +1038,14 @@ func (r *IntegrationRepository) FindWithTemplate(ctx context.Context, integratio
 
 	return integration, template, nil
 }
+
+// UpdateInstanceLastWebhook обновляет поля последнего вебхука
+func (r *IntegrationRepository) UpdateInstanceLastWebhook(ctx context.Context, instanceID string, headers, body json.RawMessage, lastAt time.Time) error {
+	query := `
+        UPDATE integration_instances 
+        SET last_webhook_headers = $1, last_webhook_body = $2, last_webhook_at = $3
+        WHERE id = $4
+    `
+	_, err := r.db.ExecContext(ctx, query, headers, body, lastAt, instanceID)
+	return err
+}

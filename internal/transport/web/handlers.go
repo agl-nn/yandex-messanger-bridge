@@ -714,3 +714,46 @@ func (h *Handler) DeleteInstance(c echo.Context) error {
 	// Редирект на страницу со списком
 	return c.HTML(http.StatusOK, `<script>window.location.href='/instances'</script>`)
 }
+
+// GetLastWebhook возвращает последний вебхук для экземпляра
+func (h *Handler) GetLastWebhook(c echo.Context) error {
+	id := c.Param("id")
+	userID := getUserIDFromContext(c)
+
+	instance, err := h.repo.GetInstanceByID(c.Request().Context(), id, userID)
+	if err != nil {
+		return c.String(http.StatusNotFound, "Instance not found")
+	}
+
+	if instance.LastWebhookAt == nil {
+		return c.HTML(http.StatusOK, `<div class="p-4 text-gray-500">Нет сохранённых запросов</div>`)
+	}
+
+	// Форматируем JSON для красивого отображения
+	var prettyHeaders, prettyBody bytes.Buffer
+	json.Indent(&prettyHeaders, instance.LastWebhookHeaders, "", "  ")
+	json.Indent(&prettyBody, instance.LastWebhookBody, "", "  ")
+
+	return c.HTML(http.StatusOK, fmt.Sprintf(`
+        <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" id="webhook-modal">
+            <div class="relative top-20 mx-auto p-5 border w-[800px] shadow-lg rounded-md bg-white">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-medium">Последний запрос (%s)</h3>
+                    <button onclick="document.getElementById('webhook-modal').remove()" class="text-gray-500 hover:text-gray-700">✕</button>
+                </div>
+                <div class="mb-4">
+                    <h4 class="font-medium mb-2">Заголовки:</h4>
+                    <pre class="bg-gray-50 p-3 rounded text-sm overflow-auto max-h-40">%s</pre>
+                </div>
+                <div>
+                    <h4 class="font-medium mb-2">Тело запроса:</h4>
+                    <pre class="bg-gray-50 p-3 rounded text-sm overflow-auto max-h-96 font-mono">%s</pre>
+                </div>
+            </div>
+        </div>
+    `,
+		instance.LastWebhookAt.Format("02.01.2006 15:04:05"),
+		prettyHeaders.String(),
+		prettyBody.String(),
+	))
+}
