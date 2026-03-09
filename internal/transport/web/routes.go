@@ -30,7 +30,6 @@ func SetupRoutes(
 		protected.GET("/integrations/:id/edit", handler.EditIntegrationForm)
 		protected.PUT("/integrations/:id", handler.UpdateIntegration)
 		protected.DELETE("/integrations/:id", handler.DeleteIntegration)
-		protected.GET("/integrations/:id/logs", handler.IntegrationLogs)
 		protected.POST("/integrations/:id/test", handler.TestIntegration)
 		// Удален вызов handler.SourceConfigFields
 	}
