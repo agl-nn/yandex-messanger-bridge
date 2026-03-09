@@ -11,6 +11,7 @@ templ TemplateForm(template *domain.Template) {
                 @TemplateFormHeader(template)
 
                 <form hx-post="/admin/templates"
+                      method="POST"
                       hx-target="body"
                       hx-swap="innerHTML"
                       hx-on::after-request="if(event.detail.successful) document.getElementById('modal').remove()">
