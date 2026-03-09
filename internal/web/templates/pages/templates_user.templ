@@ -5,13 +5,13 @@ import (
     "yandex-messenger-bridge/internal/web/templates"
 )
 
-templ TemplatesUserPage(templates []*domain.Template, user *domain.User) {
+templ TemplatesUserPage(templatesList []*domain.Template, user *domain.User) {
     @templates.Base("Доступные шаблоны", user) {
         <div class="space-y-6">
             <h1 class="text-3xl font-bold text-gray-900">Доступные шаблоны</h1>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                for _, t := range templates {
+                for _, t := range templatesList {
                     <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
                         <div class="text-4xl mb-4">{ t.Icon }</div>
                         <h3 class="text-xl font-semibold mb-2">{ t.Name }</h3>
