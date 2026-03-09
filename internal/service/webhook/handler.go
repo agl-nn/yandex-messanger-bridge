@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/osteele/liquid"
 	"github.com/rs/zerolog/log"
 
 	"yandex-messenger-bridge/internal/domain"
@@ -123,5 +124,118 @@ func (h *Handler) retrySend(integration *domain.Integration, message string, att
 	if err := h.sendToYandex(ctx, integration, message); err != nil {
 		log.Error().Err(err).Int("attempt", attempt+1).Msg("Retry failed")
 		h.retrySend(integration, message, attempt+1)
+	}
+}
+
+// HandleInstanceWebhook обрабатывает вебхуки для экземпляров интеграций
+func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) {
+	instanceID := r.PathValue("id")
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	r = r.WithContext(ctx)
+
+	// Загружаем экземпляр с шаблоном
+	instance, err := h.repo.GetInstanceWithTemplate(ctx, instanceID, "")
+	if err != nil {
+		log.Error().Err(err).Str("id", instanceID).Msg("Instance not found")
+		http.Error(w, "Instance not found", http.StatusNotFound)
+		return
+	}
+
+	// Проверяем, активна ли интеграция
+	if !instance.IsActive {
+		log.Warn().Str("id", instanceID).Msg("Instance is inactive")
+		http.Error(w, "Instance is inactive", http.StatusForbidden)
+		return
+	}
+
+	// Читаем тело запроса
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to read body")
+		http.Error(w, "Failed to read body", http.StatusBadRequest)
+		return
+	}
+
+	// Парсим JSON в map для Liquid
+	var data map[string]interface{}
+	if err := json.Unmarshal(body, &data); err != nil {
+		log.Error().Err(err).Msg("Failed to parse JSON")
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Логируем входящий запрос (для отладки)
+	log.Info().
+		Str("instance_id", instanceID).
+		Str("template", instance.Template.Name).
+		Interface("data", data).
+		Msg("Webhook received")
+
+	// Применяем Liquid шаблон
+	engine := liquid.NewEngine()
+	out, err := engine.ParseAndRenderString(instance.Template.TemplateText, data)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to render template")
+
+		// Сохраняем ошибку в лог доставки
+		h.saveDeliveryLog(ctx, instanceID, body, 0, nil, err.Error())
+
+		http.Error(w, "Template error", http.StatusInternalServerError)
+		return
+	}
+
+	// Расшифровываем токен бота
+	decryptedToken, err := h.encryptor.Decrypt(instance.BotToken)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to decrypt bot token")
+		h.saveDeliveryLog(ctx, instanceID, body, 0, nil, "Failed to decrypt token")
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+
+	// Создаём клиент Яндекс.Мессенджера
+	yandexClient := yandex.NewClient(decryptedToken)
+
+	// Отправляем сообщение
+	err = yandexClient.SendToChat(ctx, instance.ChatID, out, nil)
+
+	// Сохраняем лог доставки
+	status := 200
+	if err != nil {
+		status = 500
+	}
+	h.saveDeliveryLog(ctx, instanceID, body, status, []byte(out), err)
+
+	if err != nil {
+		log.Error().Err(err).Str("instance_id", instanceID).Msg("Failed to send message")
+		http.Error(w, "Failed to send", http.StatusInternalServerError)
+		return
+	}
+
+	log.Info().Str("instance_id", instanceID).Msg("Message sent successfully")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"ok"}`))
+}
+
+// saveDeliveryLog сохраняет лог доставки
+func (h *Handler) saveDeliveryLog(ctx context.Context, instanceID string, request []byte, status int, response []byte, err error) {
+	logEntry := &domain.DeliveryLog{
+		IntegrationID:  instanceID,
+		SourceEventID:  "", // можно добавить из запроса если есть
+		RequestPayload: request,
+		ResponseStatus: status,
+		ResponseBody:   response,
+		DeliveredAt:    time.Now(),
+		DurationMS:     0, // можно добавить позже
+	}
+
+	if err != nil {
+		logEntry.Error = err.Error()
+	}
+
+	if err := h.repo.CreateDeliveryLog(ctx, logEntry); err != nil {
+		log.Error().Err(err).Msg("Failed to save delivery log")
 	}
 }

@@ -83,6 +83,7 @@ func main() {
 	webhookGroup.POST("/:id/jira", echo.WrapHandler(http.HandlerFunc(webhookHandler.HandleJira)))
 	webhookGroup.POST("/:id/gitlab", echo.WrapHandler(http.HandlerFunc(webhookHandler.HandleGitLab)))
 	webhookGroup.POST("/:id/alertmanager", echo.WrapHandler(http.HandlerFunc(webhookHandler.HandleAlertmanager)))
+	webhookGroup.POST("/instance/:id", echo.WrapHandler(http.HandlerFunc(webhookHandler.HandleInstanceWebhook)))
 
 	// Публичные API эндпоинты
 	authAPI := api.NewAuthAPI(integrationRepo, cfg.JWTSecret)
