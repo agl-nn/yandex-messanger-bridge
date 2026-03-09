@@ -207,8 +207,7 @@ func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) 
 	engine := liquid.NewEngine()
 	out, err := engine.ParseAndRenderString(instance.Template.TemplateText, data)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to render template")
-		h.saveDeliveryLog(ctx, instanceID, body, 0, nil, fmt.Errorf("template error: %w", err))
+		log.Error().Err(err).Str("instance_id", instanceID).Msg("Failed to render template")
 		http.Error(w, "Template error", http.StatusInternalServerError)
 		return
 	}
@@ -216,8 +215,7 @@ func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) 
 	// Расшифровываем токен бота
 	decryptedToken, err := h.encryptor.Decrypt(instance.BotToken)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to decrypt bot token")
-		h.saveDeliveryLog(ctx, instanceID, body, 0, nil, fmt.Errorf("failed to decrypt token: %w", err))
+		log.Error().Err(err).Str("instance_id", instanceID).Msg("Failed to decrypt bot token")
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
@@ -228,13 +226,6 @@ func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) 
 	// Отправляем сообщение
 	err = yandexClient.SendToChat(ctx, instance.ChatID, out, nil)
 
-	// Сохраняем лог доставки
-	status := 200
-	if err != nil {
-		status = 500
-	}
-	h.saveDeliveryLog(ctx, instanceID, body, status, []byte(out), err)
-
 	if err != nil {
 		log.Error().Err(err).Str("instance_id", instanceID).Msg("Failed to send message")
 		http.Error(w, "Failed to send", http.StatusInternalServerError)
@@ -244,45 +235,4 @@ func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) 
 	log.Info().Str("instance_id", instanceID).Msg("Message sent successfully")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"status":"ok"}`))
-}
-
-// saveDeliveryLog сохраняет лог доставки
-func (h *Handler) saveDeliveryLog(ctx context.Context, instanceID string, request []byte, status int, response []byte, err error) {
-	// Проверяем, что request - валидный JSON
-	var requestJSON json.RawMessage
-	if json.Valid(request) {
-		requestJSON = request
-	} else {
-		// Если не JSON, оборачиваем в JSON-строку
-		invalidJSON, _ := json.Marshal(string(request))
-		requestJSON = invalidJSON
-	}
-
-	// Проверяем response
-	var responseJSON json.RawMessage
-	if len(response) > 0 && json.Valid(response) {
-		responseJSON = response
-	} else if len(response) > 0 {
-		// Если не JSON, оборачиваем в JSON-строку
-		invalidJSON, _ := json.Marshal(string(response))
-		responseJSON = invalidJSON
-	}
-
-	logEntry := &domain.DeliveryLog{
-		IntegrationID:  instanceID,
-		SourceEventID:  "",
-		RequestPayload: requestJSON,
-		ResponseStatus: status,
-		ResponseBody:   responseJSON,
-		DeliveredAt:    time.Now(),
-		DurationMS:     0,
-	}
-
-	if err != nil {
-		logEntry.Error = err.Error()
-	}
-
-	if err := h.repo.CreateDeliveryLog(ctx, logEntry); err != nil {
-		log.Error().Err(err).Msg("Failed to save delivery log")
-	}
 }
