@@ -10,6 +10,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
+	"github.com/osteele/liquid"
 
 	"yandex-messenger-bridge/internal/domain"
 	repoInterface "yandex-messenger-bridge/internal/repository/interface"
@@ -595,4 +596,52 @@ func (h *Handler) InstancesListPage(c echo.Context) error {
 	}
 
 	return pages.InstancesListPage(instances, user).Render(c.Request().Context(), c.Response().Writer)
+}
+
+// TestInstance отправляет тестовое сообщение для экземпляра
+func (h *Handler) TestInstance(c echo.Context) error {
+	id := c.Param("id")
+	userID := getUserIDFromContext(c)
+
+	// Загружаем экземпляр с шаблоном
+	instance, err := h.repo.GetInstanceWithTemplate(c.Request().Context(), id, userID)
+	if err != nil {
+		return c.String(http.StatusNotFound, "Интеграция не найдена")
+	}
+
+	// Расшифровываем токен бота
+	decryptedToken, err := h.encryptor.Decrypt(instance.BotToken)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to decrypt bot token")
+		return c.HTML(http.StatusInternalServerError, `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">Ошибка расшифровки токена</div>`)
+	}
+
+	// Создаём клиент Яндекс.Мессенджера
+	yandexClient := yandex.NewClient(decryptedToken)
+
+	// Тестовые данные для Liquid
+	testData := map[string]interface{}{
+		"test":      true,
+		"message":   "Тестовое сообщение",
+		"timestamp": time.Now().Unix(),
+	}
+
+	// Применяем Liquid шаблон
+	engine := liquid.NewEngine()
+	out, err := engine.ParseAndRenderString(instance.Template.TemplateText, testData)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to render template")
+		return c.HTML(http.StatusInternalServerError, `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">Ошибка шаблона</div>`)
+	}
+
+	// Отправляем сообщение
+	err = yandexClient.SendToChat(c.Request().Context(), instance.ChatID, out, nil)
+
+	if err != nil {
+		log.Error().Err(err).Str("instance_id", id).Msg("Test message failed")
+		return c.HTML(http.StatusInternalServerError, fmt.Sprintf(`<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">Ошибка: %s</div>`, err.Error()))
+	}
+
+	log.Info().Str("instance_id", id).Msg("Test message sent successfully")
+	return c.HTML(http.StatusOK, `<div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">✓ Тестовое сообщение отправлено</div>`)
 }
