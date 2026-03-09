@@ -16,33 +16,11 @@ templ TemplateForm(template *domain.Template) {
                       hx-on::after-request="if(event.detail.successful) document.getElementById('modal').remove()">
 
                     @HiddenID(template)
-
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Название</label>
-                        <input type="text" name="name" value={ if template != nil { template.Name } else { "" } } class="w-full px-3 py-2 border border-gray-300 rounded-md" required/>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Иконка</label>
-                        <input type="text" name="icon" value={ if template != nil { template.Icon } else { "" } } class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="🎯"/>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Описание</label>
-                        <textarea name="description" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md">{ if template != nil { template.Description } else { "" } }</textarea>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Liquid шаблон</label>
-                        <textarea name="template_text" rows="6" required class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm">{ if template != nil { template.TemplateText } else { "" } }</textarea>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="flex items-center">
-                            <input type="checkbox" name="is_public" class="rounded border-gray-300 text-blue-600 shadow-sm" checked={ template == nil || template.IsPublic }/>
-                            <span class="ml-2 text-sm text-gray-700">Публичный шаблон</span>
-                        </label>
-                    </div>
+                    @NameInput(template)
+                    @IconInput(template)
+                    @DescriptionInput(template)
+                    @TemplateTextInput(template)
+                    @PublicCheckbox(template)
 
                     <div class="flex justify-end space-x-3">
                         <button type="button" onclick="document.getElementById('modal').remove()"
@@ -72,4 +50,61 @@ templ HiddenID(template *domain.Template) {
     if template != nil {
         <input type="hidden" name="id" value={ template.ID }/>
     }
+}
+
+templ NameInput(template *domain.Template) {
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Название</label>
+        if template != nil {
+            <input type="text" name="name" value={ template.Name } class="w-full px-3 py-2 border border-gray-300 rounded-md" required/>
+        } else {
+            <input type="text" name="name" value="" class="w-full px-3 py-2 border border-gray-300 rounded-md" required/>
+        }
+    </div>
+}
+
+templ IconInput(template *domain.Template) {
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Иконка</label>
+        if template != nil {
+            <input type="text" name="icon" value={ template.Icon } class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="🎯"/>
+        } else {
+            <input type="text" name="icon" value="" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="🎯"/>
+        }
+    </div>
+}
+
+templ DescriptionInput(template *domain.Template) {
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Описание</label>
+        if template != nil {
+            <textarea name="description" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md">{ template.Description }</textarea>
+        } else {
+            <textarea name="description" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md"></textarea>
+        }
+    </div>
+}
+
+templ TemplateTextInput(template *domain.Template) {
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Liquid шаблон</label>
+        if template != nil {
+            <textarea name="template_text" rows="6" required class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm">{ template.TemplateText }</textarea>
+        } else {
+            <textarea name="template_text" rows="6" required class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"></textarea>
+        }
+    </div>
+}
+
+templ PublicCheckbox(template *domain.Template) {
+    <div class="mb-4">
+        <label class="flex items-center">
+            if template == nil || template.IsPublic {
+                <input type="checkbox" name="is_public" class="rounded border-gray-300 text-blue-600 shadow-sm" checked/>
+            } else {
+                <input type="checkbox" name="is_public" class="rounded border-gray-300 text-blue-600 shadow-sm"/>
+            }
+            <span class="ml-2 text-sm text-gray-700">Публичный шаблон</span>
+        </label>
+    </div>
 }
