@@ -8,19 +8,19 @@ templ TemplateForm(template *domain.Template) {
     <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" id="modal">
         <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div class="mt-3">
-                @FormHeader(template)
+                @TemplateFormHeader(template)
 
                 <form hx-post="/admin/templates"
                       hx-target="#templates-container"
                       hx-swap="outerHTML"
                       hx-on::after-request="if(event.detail.successful) document.getElementById('modal').remove()">
 
-                    @HiddenID(template)
-                    @NameInput(template)
-                    @IconInput(template)
-                    @DescriptionInput(template)
+                    @TemplateHiddenID(template)
+                    @TemplateNameInput(template)
+                    @TemplateIconInput(template)
+                    @TemplateDescriptionInput(template)
                     @TemplateTextInput(template)
-                    @PublicCheckbox(template)
+                    @TemplatePublicCheckbox(template)
 
                     <div class="flex justify-end space-x-3">
                         <button type="button" onclick="document.getElementById('modal').remove()"
@@ -38,7 +38,7 @@ templ TemplateForm(template *domain.Template) {
     </div>
 }
 
-templ FormHeader(template *domain.Template) {
+templ TemplateFormHeader(template *domain.Template) {
     if template != nil {
         <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Редактирование шаблона</h3>
     } else {
@@ -46,13 +46,13 @@ templ FormHeader(template *domain.Template) {
     }
 }
 
-templ HiddenID(template *domain.Template) {
+templ TemplateHiddenID(template *domain.Template) {
     if template != nil {
         <input type="hidden" name="id" value={ template.ID }/>
     }
 }
 
-templ NameInput(template *domain.Template) {
+templ TemplateNameInput(template *domain.Template) {
     <div class="mb-4">
         <label class="block text-sm font-medium text-gray-700 mb-2">Название</label>
         if template != nil {
@@ -63,7 +63,7 @@ templ NameInput(template *domain.Template) {
     </div>
 }
 
-templ IconInput(template *domain.Template) {
+templ TemplateIconInput(template *domain.Template) {
     <div class="mb-4">
         <label class="block text-sm font-medium text-gray-700 mb-2">Иконка</label>
         if template != nil {
@@ -74,7 +74,7 @@ templ IconInput(template *domain.Template) {
     </div>
 }
 
-templ DescriptionInput(template *domain.Template) {
+templ TemplateDescriptionInput(template *domain.Template) {
     <div class="mb-4">
         <label class="block text-sm font-medium text-gray-700 mb-2">Описание</label>
         if template != nil {
@@ -96,7 +96,7 @@ templ TemplateTextInput(template *domain.Template) {
     </div>
 }
 
-templ PublicCheckbox(template *domain.Template) {
+templ TemplatePublicCheckbox(template *domain.Template) {
     <div class="mb-4">
         <label class="flex items-center">
             if template == nil || template.IsPublic {
