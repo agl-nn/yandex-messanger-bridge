@@ -342,21 +342,35 @@ func (h *Handler) NewTemplateForm(c echo.Context) error {
 
 // CreateTemplate создает новый шаблон
 func (h *Handler) CreateTemplate(c echo.Context) error {
+	log.Info().Msg("🚀 CreateTemplate handler called")
+
 	userID := getUserIDFromContext(c)
+	log.Info().Str("user_id", userID).Msg("Creating template")
 
 	// Проверяем права админа
 	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
 	if err != nil || user.Role != "admin" {
+		log.Error().Err(err).Str("role", user.Role).Msg("Access denied")
 		return c.String(http.StatusForbidden, "Доступ запрещен")
 	}
 
+	// Логируем все поля формы
 	name := c.FormValue("name")
 	icon := c.FormValue("icon")
 	description := c.FormValue("description")
 	templateText := c.FormValue("template_text")
 	isPublic := c.FormValue("is_public") == "on"
 
+	log.Info().
+		Str("name", name).
+		Str("icon", icon).
+		Str("description", description).
+		Bool("is_public", isPublic).
+		Int("template_length", len(templateText)).
+		Msg("Form values received")
+
 	if name == "" || templateText == "" {
+		log.Error().Msg("Name or template text is empty")
 		return c.String(http.StatusBadRequest, "Name and template text are required")
 	}
 
@@ -369,12 +383,14 @@ func (h *Handler) CreateTemplate(c echo.Context) error {
 		CreatedBy:    sql.NullString{String: userID, Valid: userID != ""},
 	}
 
+	log.Info().Interface("template", template).Msg("Attempting to create template")
+
 	if err := h.repo.CreateTemplate(c.Request().Context(), template); err != nil {
 		log.Error().Err(err).Msg("Failed to create template")
 		return c.String(http.StatusInternalServerError, "Failed to create template")
 	}
 
-	log.Info().Str("id", template.ID).Str("name", name).Msg("Template created")
+	log.Info().Str("id", template.ID).Str("name", name).Msg("Template created successfully")
 	return c.Redirect(http.StatusSeeOther, "/admin/templates")
 }
 
