@@ -531,8 +531,8 @@ func (r *IntegrationRepository) UpdateTemplate(ctx context.Context, template *do
 	query := `
         UPDATE templates 
         SET name = $1, description = $2, icon = $3, template_text = $4, 
-            is_public = $5, sample_payload = $6, updated_at = NOW()
-        WHERE id = $7
+            is_public = $5, updated_at = NOW()
+        WHERE id = $6
     `
 
 	result, err := r.db.ExecContext(ctx, query,
@@ -541,7 +541,6 @@ func (r *IntegrationRepository) UpdateTemplate(ctx context.Context, template *do
 		template.Icon,
 		template.TemplateText,
 		template.IsPublic,
-		template.SamplePayload,
 		template.ID,
 	)
 	if err != nil {
