@@ -365,7 +365,7 @@ func (h *Handler) CreateTemplate(c echo.Context) error {
 		Description:  description,
 		TemplateText: templateText,
 		IsPublic:     isPublic,
-		CreatedBy:    userID,
+		CreatedBy:    sql.NullString{String: userID, Valid: userID != ""},
 	}
 
 	if err := h.repo.CreateTemplate(c.Request().Context(), template); err != nil {
