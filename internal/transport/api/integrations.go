@@ -156,28 +156,28 @@ func (api *IntegrationAPI) Delete(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (api *IntegrationAPI) GetLogs(c echo.Context) error {
-	id := c.Param("id")
-	userID := c.Get("user_id").(string)
-
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	if limit <= 0 || limit > 100 {
-		limit = 50
-	}
-	offset, _ := strconv.Atoi(c.QueryParam("offset"))
-
-	logs, total, err := api.repo.GetDeliveryLogs(c.Request().Context(), id, userID, limit, offset)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-	}
-
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"data":   logs,
-		"total":  total,
-		"limit":  limit,
-		"offset": offset,
-	})
-}
+//func (api *IntegrationAPI) GetLogs(c echo.Context) error {
+//	id := c.Param("id")
+//	userID := c.Get("user_id").(string)
+//
+//	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+//	if limit <= 0 || limit > 100 {
+//		limit = 50
+//	}
+//	offset, _ := strconv.Atoi(c.QueryParam("offset"))
+//
+//	logs, total, err := api.repo.GetDeliveryLogs(c.Request().Context(), id, userID, limit, offset)
+//	if err != nil {
+//		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+//	}
+//
+//	return c.JSON(http.StatusOK, map[string]interface{}{
+//		"data":   logs,
+//		"total":  total,
+//		"limit":  limit,
+//		"offset": offset,
+//	})
+//}
 
 func (api *IntegrationAPI) Test(c echo.Context) error {
 	id := c.Param("id")

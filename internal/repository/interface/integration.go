@@ -20,8 +20,8 @@ type IntegrationRepository interface {
 	FindByIDAndUser(ctx context.Context, id string, userID string) (*domain.Integration, error)
 
 	// Логи
-	CreateDeliveryLog(ctx context.Context, log *domain.DeliveryLog) error
-	GetDeliveryLogs(ctx context.Context, integrationID string, userID string, limit, offset int) ([]*domain.DeliveryLog, int, error)
+	//CreateDeliveryLog(ctx context.Context, log *domain.DeliveryLog) error
+	//GetDeliveryLogs(ctx context.Context, integrationID string, userID string, limit, offset int) ([]*domain.DeliveryLog, int, error)
 
 	// Пользователи
 	CreateUser(ctx context.Context, user *domain.User) error

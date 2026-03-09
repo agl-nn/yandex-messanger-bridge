@@ -213,25 +213,25 @@ func (h *Handler) DeleteIntegration(c echo.Context) error {
 	return h.IntegrationsPage(c)
 }
 
-// IntegrationLogs отображает логи доставки для интеграции
-func (h *Handler) IntegrationLogs(c echo.Context) error {
-	id := c.Param("id")
-	userID := getUserIDFromContext(c)
-
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	if limit <= 0 || limit > 100 {
-		limit = 50
-	}
-	offset, _ := strconv.Atoi(c.QueryParam("offset"))
-
-	logs, total, err := h.repo.GetDeliveryLogs(c.Request().Context(), id, userID, limit, offset)
-	if err != nil {
-		log.Error().Err(err).Str("id", id).Msg("Failed to load logs")
-		return c.String(http.StatusInternalServerError, "Failed to load logs")
-	}
-
-	return components.LogsTable(logs, total, limit, offset).Render(c.Request().Context(), c.Response().Writer)
-}
+//// IntegrationLogs отображает логи доставки для интеграции
+//func (h *Handler) IntegrationLogs(c echo.Context) error {
+//	id := c.Param("id")
+//	userID := getUserIDFromContext(c)
+//
+//	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+//	if limit <= 0 || limit > 100 {
+//		limit = 50
+//	}
+//	offset, _ := strconv.Atoi(c.QueryParam("offset"))
+//
+//	logs, total, err := h.repo.GetDeliveryLogs(c.Request().Context(), id, userID, limit, offset)
+//	if err != nil {
+//		log.Error().Err(err).Str("id", id).Msg("Failed to load logs")
+//		return c.String(http.StatusInternalServerError, "Failed to load logs")
+//	}
+//
+//	return components.LogsTable(logs, total, limit, offset).Render(c.Request().Context(), c.Response().Writer)
+//}
 
 // TestIntegration отправляет тестовое сообщение в Яндекс.Мессенджер
 func (h *Handler) TestIntegration(c echo.Context) error {

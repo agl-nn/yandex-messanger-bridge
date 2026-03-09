@@ -42,18 +42,18 @@ type DestinationConfig struct {
 	BotToken string `json:"bot_token" db:"bot_token"`
 }
 
-// DeliveryLog - лог доставки
-type DeliveryLog struct {
-	ID             int64           `db:"id" json:"id"`
-	IntegrationID  string          `db:"integration_id" json:"integration_id"`
-	SourceEventID  string          `db:"source_event_id" json:"source_event_id"`
-	RequestPayload json.RawMessage `db:"request_payload" json:"request_payload"`
-	ResponseStatus int             `db:"response_status" json:"response_status"`
-	ResponseBody   json.RawMessage `db:"response_body" json:"response_body"`
-	Error          string          `db:"error" json:"error"`
-	DeliveredAt    time.Time       `db:"delivered_at" json:"delivered_at"`
-	DurationMS     int             `db:"duration_ms" json:"duration_ms"`
-}
+//// DeliveryLog - лог доставки
+//type DeliveryLog struct {
+//	ID             int64           `db:"id" json:"id"`
+//	IntegrationID  string          `db:"integration_id" json:"integration_id"`
+//	SourceEventID  string          `db:"source_event_id" json:"source_event_id"`
+//	RequestPayload json.RawMessage `db:"request_payload" json:"request_payload"`
+//	ResponseStatus int             `db:"response_status" json:"response_status"`
+//	ResponseBody   json.RawMessage `db:"response_body" json:"response_body"`
+//	Error          string          `db:"error" json:"error"`
+//	DeliveredAt    time.Time       `db:"delivered_at" json:"delivered_at"`
+//	DurationMS     int             `db:"duration_ms" json:"duration_ms"`
+//}
 
 // APIKey - ключ для доступа к API
 type APIKey struct {
