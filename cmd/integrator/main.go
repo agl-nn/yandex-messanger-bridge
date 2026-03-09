@@ -139,6 +139,11 @@ func main() {
 		webGroup.GET("/admin/templates/:id/edit", webHandler.TemplateEditPage)
 		webGroup.POST("/admin/templates", webHandler.CreateTemplate)
 		webGroup.DELETE("/admin/templates/:id", webHandler.DeleteTemplate)
+		// Пользовательские маршруты для шаблонов и экземпляров
+		webGroup.GET("/templates", webHandler.TemplatesUserPage)
+		webGroup.GET("/templates/:id/use", webHandler.InstanceCreatePage)
+		webGroup.POST("/instances", webHandler.CreateInstance)
+		webGroup.GET("/instances", webHandler.InstancesListPage) // добавим позже
 	}
 
 	// Статические файлы

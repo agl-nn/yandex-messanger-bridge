@@ -498,3 +498,84 @@ func (h *Handler) CreateTemplate(c echo.Context) error {
 
 	return c.Redirect(http.StatusSeeOther, "/admin/templates")
 }
+
+// TemplatesUserPage отображает список доступных шаблонов для пользователей
+func (h *Handler) TemplatesUserPage(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get user")
+	}
+
+	// Показываем публичные шаблоны и шаблоны, созданные пользователем (если он админ)
+	templates, err := h.repo.ListTemplates(c.Request().Context(), userID, true)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to load templates")
+		return c.String(http.StatusInternalServerError, "Failed to load templates")
+	}
+
+	return pages.TemplatesUserPage(templates, user).Render(c.Request().Context(), c.Response().Writer)
+}
+
+// InstanceCreatePage отображает форму создания экземпляра из шаблона
+func (h *Handler) InstanceCreatePage(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get user")
+	}
+
+	templateID := c.Param("id")
+	template, err := h.repo.GetTemplateByID(c.Request().Context(), templateID)
+	if err != nil {
+		return c.String(http.StatusNotFound, "Template not found")
+	}
+
+	// Проверяем доступ к шаблону
+	if !template.IsPublic && template.CreatedBy.String != userID {
+		return c.String(http.StatusForbidden, "Access denied")
+	}
+
+	return pages.InstanceCreatePage(template, user).Render(c.Request().Context(), c.Response().Writer)
+}
+
+// CreateInstance создает новый экземпляр интеграции
+func (h *Handler) CreateInstance(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+
+	templateID := c.FormValue("template_id")
+	name := c.FormValue("name")
+	chatID := c.FormValue("chat_id")
+	botToken := c.FormValue("bot_token")
+
+	if name == "" || chatID == "" || botToken == "" {
+		return c.String(http.StatusBadRequest, "All fields are required")
+	}
+
+	// Проверяем существование и доступность шаблона
+	template, err := h.repo.GetTemplateByID(c.Request().Context(), templateID)
+	if err != nil {
+		return c.String(http.StatusNotFound, "Template not found")
+	}
+
+	if !template.IsPublic && template.CreatedBy.String != userID {
+		return c.String(http.StatusForbidden, "Access denied")
+	}
+
+	instance := &domain.IntegrationInstance{
+		TemplateID: templateID,
+		UserID:     userID,
+		Name:       name,
+		ChatID:     chatID,
+		BotToken:   botToken,
+		IsActive:   true,
+	}
+
+	if err := h.repo.CreateInstance(c.Request().Context(), instance); err != nil {
+		log.Error().Err(err).Msg("Failed to create instance")
+		return c.String(http.StatusInternalServerError, "Failed to create instance")
+	}
+
+	log.Info().Str("id", instance.ID).Str("name", name).Msg("Instance created")
+	return c.Redirect(http.StatusSeeOther, "/instances")
+}
