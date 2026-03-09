@@ -314,6 +314,7 @@ func (h *Handler) TemplatesAdminPage(c echo.Context) error {
 	// Проверяем, что пользователь админ
 	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
 	if err != nil || user.Role != "admin" {
+		log.Error().Err(err).Str("role", user.Role).Msg("Access denied to admin page")
 		return c.String(http.StatusForbidden, "Доступ запрещен")
 	}
 
@@ -322,6 +323,12 @@ func (h *Handler) TemplatesAdminPage(c echo.Context) error {
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to load templates")
 		return c.String(http.StatusInternalServerError, "Failed to load templates")
+	}
+
+	// ЛОГИРУЕМ КОЛИЧЕСТВО ШАБЛОНОВ
+	log.Info().Int("count", len(templates)).Msg("Templates loaded for admin page")
+	for _, t := range templates {
+		log.Info().Str("id", t.ID).Str("name", t.Name).Str("icon", t.Icon).Msg("Template details")
 	}
 
 	return pages.TemplatesAdminPage(templates, user).Render(c.Request().Context(), c.Response().Writer)
