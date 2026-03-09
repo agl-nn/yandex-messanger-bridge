@@ -40,12 +40,12 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to run migrations")
 	}
 
-	// Инициализируем репозитории
-	integrationRepo := postgres.NewIntegrationRepository(db, encryptor)
-
 	// Инициализируем сервисы
 	encryptor := encryption.NewEncryptor(cfg.EncryptionKey)
 	yandexClient := yandex.NewClient("") // Токен будет подставляться динамически
+
+	// Инициализируем репозитории
+	integrationRepo := postgres.NewIntegrationRepository(db, encryptor)
 
 	// Инициализируем обработчики вебхуков
 	webhookHandler := webhook.NewHandler(
