@@ -72,30 +72,30 @@ templ InstanceRow(inst *domain.IntegrationInstance) {
             </code>
         </td>
         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-            **<button class="text-purple-600 hover:text-purple-900 mr-3"**
-                    **hx-get={ "/instances/" + inst.ID + "/last-webhook" }**
-                    **hx-target="#webhook-modal"**
-                    **hx-trigger="click"**
-                    **title="Последний запрос">**
-                **🔍**
-            **</button>**
-            <a href={ "/instances/" + inst.ID + "/edit" }
-               class="text-indigo-600 hover:text-indigo-900 mr-3">
-                ✏️
-            </a>
-            <button class="text-green-600 hover:text-green-900 mr-3"
-                    hx-post={ "/instances/" + inst.ID + "/test" }
-                    hx-target="#test-result"
-                    hx-swap="innerHTML">
-                🚀
-            </button>
-            <button class="text-red-600 hover:text-red-900"
-                    hx-delete={ "/instances/" + inst.ID }
-                    hx-confirm="Удалить интеграцию?"
-                    hx-target="#instances-container">
-                🗑️
-            </button>
-        </td>
+           <button class="text-purple-600 hover:text-purple-900 mr-3"
+                   hx-get={ "/instances/" + inst.ID + "/last-webhook" }
+                   hx-target="#webhook-modal"
+                   hx-trigger="click"
+                   title="Последний запрос">
+               🔍
+           </button>
+           <a href={ "/instances/" + inst.ID + "/edit" }
+              class="text-indigo-600 hover:text-indigo-900 mr-3">
+               ✏️
+           </a>
+           <button class="text-green-600 hover:text-green-900 mr-3"
+                   hx-post={ "/instances/" + inst.ID + "/test" }
+                   hx-target="#test-result"
+                   hx-swap="innerHTML">
+               🚀
+           </button>
+           <button class="text-red-600 hover:text-red-900"
+                   hx-delete={ "/instances/" + inst.ID }
+                   hx-confirm="Удалить интеграцию?"
+                   hx-target="#instances-container">
+               🗑️
+           </button>
+       </td>
     </tr>
 }
 
