@@ -605,13 +605,13 @@ func (h *Handler) InstancesListPage(c echo.Context) error {
 	return pages.InstancesListPage(instances, user).Render(c.Request().Context(), c.Response().Writer)
 }
 
-// TestInstance отправляет тестовое сообщение для экземпляра
+// TestInstance отправляет тестовое сообщение (без шаблона)
 func (h *Handler) TestInstance(c echo.Context) error {
 	id := c.Param("id")
 	userID := getUserIDFromContext(c)
 
-	// Загружаем экземпляр с шаблоном
-	instance, err := h.repo.GetInstanceWithTemplate(c.Request().Context(), id, userID)
+	// Загружаем экземпляр (только для получения токена и chat_id)
+	instance, err := h.repo.GetInstanceByID(c.Request().Context(), id, userID)
 	if err != nil {
 		return c.String(http.StatusNotFound, "Интеграция не найдена")
 	}
@@ -626,23 +626,13 @@ func (h *Handler) TestInstance(c echo.Context) error {
 	// Создаём клиент Яндекс.Мессенджера
 	yandexClient := yandex.NewClient(decryptedToken)
 
-	// Тестовые данные для Liquid
-	testData := map[string]interface{}{
-		"test":      true,
-		"message":   "Тестовое сообщение",
-		"timestamp": time.Now().Unix(),
-	}
-
-	// Применяем Liquid шаблон
-	engine := liquid.NewEngine()
-	out, err := engine.ParseAndRenderString(instance.Template.TemplateText, testData)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to render template")
-		return c.HTML(http.StatusInternalServerError, `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">Ошибка шаблона</div>`)
-	}
+	// Простое тестовое сообщение (без Liquid)
+	testMessage := fmt.Sprintf("🔄 *Тестовое сообщение*\n\nЭкземпляр: *%s*\nВремя: *%s*",
+		instance.Name,
+		time.Now().Format("02.01.2006 15:04:05"))
 
 	// Отправляем сообщение
-	err = yandexClient.SendToChat(c.Request().Context(), instance.ChatID, out, nil)
+	err = yandexClient.SendToChat(c.Request().Context(), instance.ChatID, testMessage, nil)
 
 	if err != nil {
 		log.Error().Err(err).Str("instance_id", id).Msg("Test message failed")
