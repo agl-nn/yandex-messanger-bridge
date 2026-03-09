@@ -41,7 +41,7 @@ func main() {
 	}
 
 	// Инициализируем репозитории
-	integrationRepo := postgres.NewIntegrationRepository(db)
+	integrationRepo := postgres.NewIntegrationRepository(db, encryptor)
 
 	// Инициализируем сервисы
 	encryptor := encryption.NewEncryptor(cfg.EncryptionKey)
@@ -107,6 +107,7 @@ func main() {
 		apiGroup.POST("/integrations/:id/test", integrationAPI.Test)
 		apiGroup.POST("/integrations/jira", integrationAPI.CreateJira)
 		apiGroup.POST("/integrations/gitlab", integrationAPI.CreateGitLab)
+		apiGroup.POST("/integrations/custom", integrationAPI.CreateCustom)
 		apiGroup.POST("/integrations/custom", integrationAPI.CreateCustom)
 		apiGroup.GET("/me", authAPI.Me)
 	}
