@@ -691,6 +691,13 @@ func (h *Handler) EditInstanceForm(c echo.Context) error {
 
 // UpdateInstance обновляет экземпляр интеграции
 func (h *Handler) UpdateInstance(c echo.Context) error {
+	log.Info().
+		Str("method", c.Request().Method).
+		Str("path", c.Request().URL.Path).
+		Str("_method", c.FormValue("_method")).
+		Str("id", c.Param("id")).
+		Msg("🚀 UpdateInstance called")
+
 	id := c.Param("id")
 	userID := getUserIDFromContext(c)
 
@@ -720,5 +727,23 @@ func (h *Handler) UpdateInstance(c echo.Context) error {
 	}
 
 	log.Info().Str("id", id).Msg("Instance updated successfully")
-	return c.Redirect(http.StatusSeeOther, "/instances")
+
+	// Редирект на страницу со списком
+	return c.HTML(http.StatusOK, `<script>window.location.href='/instances'</script>`)
+}
+
+// DeleteInstance удаляет экземпляр интеграции
+func (h *Handler) DeleteInstance(c echo.Context) error {
+	id := c.Param("id")
+	userID := getUserIDFromContext(c)
+
+	if err := h.repo.DeleteInstance(c.Request().Context(), id, userID); err != nil {
+		log.Error().Err(err).Str("id", id).Msg("Failed to delete instance")
+		return c.String(http.StatusInternalServerError, "Failed to delete instance")
+	}
+
+	log.Info().Str("id", id).Msg("Instance deleted successfully")
+
+	// Редирект на страницу со списком
+	return c.HTML(http.StatusOK, `<script>window.location.href='/instances'</script>`)
 }

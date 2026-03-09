@@ -20,6 +20,7 @@ templ InstanceEditPage(instance *domain.IntegrationInstance, user *domain.User) 
                 <form hx-put={ "/instances/" + instance.ID }
                       hx-target="body"
                       hx-swap="innerHTML"
+                      hx-push-url="true"
                       hx-on::after-request="if(event.detail.successful) window.location.href='/instances'"
                       class="space-y-6">
 
