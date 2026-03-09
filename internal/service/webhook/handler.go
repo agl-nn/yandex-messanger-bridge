@@ -248,12 +248,32 @@ func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) 
 
 // saveDeliveryLog сохраняет лог доставки
 func (h *Handler) saveDeliveryLog(ctx context.Context, instanceID string, request []byte, status int, response []byte, err error) {
+	// Проверяем, что request - валидный JSON
+	var requestJSON json.RawMessage
+	if json.Valid(request) {
+		requestJSON = request
+	} else {
+		// Если не JSON, оборачиваем в JSON-строку
+		invalidJSON, _ := json.Marshal(string(request))
+		requestJSON = invalidJSON
+	}
+
+	// Проверяем response
+	var responseJSON json.RawMessage
+	if len(response) > 0 && json.Valid(response) {
+		responseJSON = response
+	} else if len(response) > 0 {
+		// Если не JSON, оборачиваем в JSON-строку
+		invalidJSON, _ := json.Marshal(string(response))
+		responseJSON = invalidJSON
+	}
+
 	logEntry := &domain.DeliveryLog{
 		IntegrationID:  instanceID,
 		SourceEventID:  "",
-		RequestPayload: request,
+		RequestPayload: requestJSON,
 		ResponseStatus: status,
-		ResponseBody:   response,
+		ResponseBody:   responseJSON,
 		DeliveredAt:    time.Now(),
 		DurationMS:     0,
 	}
