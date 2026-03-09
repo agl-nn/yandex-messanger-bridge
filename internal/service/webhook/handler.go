@@ -132,7 +132,6 @@ func (h *Handler) retrySend(integration *domain.Integration, message string, att
 func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID разными способами для диагностики
 	pathValue := r.PathValue("id")
-	//param := r.URL.Query().Get("id")
 	pathParts := strings.Split(r.URL.Path, "/")
 	lastPart := pathParts[len(pathParts)-1]
 
@@ -157,6 +156,15 @@ func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) 
 	defer cancel()
 	r = r.WithContext(ctx)
 
+	// Читаем тело запроса
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to read body")
+		http.Error(w, "Failed to read body", http.StatusBadRequest)
+		return
+	}
+	r.Body = io.NopCloser(bytes.NewBuffer(body))
+
 	// Загружаем экземпляр с шаблоном
 	instance, err := h.repo.GetInstanceWithTemplate(ctx, instanceID, "")
 	if err != nil {
@@ -164,7 +172,23 @@ func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Instance not found", http.StatusNotFound)
 		return
 	}
+	// СОХРАНЯЕМ ПОСЛЕДНИЙ ВЕБХУК
+	headers, _ := json.Marshal(r.Header)
+	now := time.Now()
 
+	// Обновляем поля в экземпляре
+	updateQuery := `
+        UPDATE integration_instances 
+        SET last_webhook_headers = $1, last_webhook_body = $2, last_webhook_at = $3
+        WHERE id = $4
+    `
+	// Приводим репозиторий к конкретному типу для доступа к db
+	if repo, ok := h.repo.(*postgres.IntegrationRepository); ok {
+		_, err = repo.DB().ExecContext(ctx, updateQuery, headers, body, now, instanceID)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to save last webhook")
+		}
+	}
 	// Проверяем, активна ли интеграция
 	if !instance.IsActive {
 		log.Warn().Str("id", instanceID).Msg("Instance is inactive")
@@ -257,4 +281,47 @@ func (h *Handler) saveDeliveryLog(ctx context.Context, instanceID string, reques
 	if err := h.repo.CreateDeliveryLog(ctx, logEntry); err != nil {
 		log.Error().Err(err).Msg("Failed to save delivery log")
 	}
+}
+
+// GetLastWebhook возвращает последний вебхук для экземпляра
+func (h *Handler) GetLastWebhook(c echo.Context) error {
+	id := c.Param("id")
+	userID := getUserIDFromContext(c)
+
+	instance, err := h.repo.GetInstanceByID(c.Request().Context(), id, userID)
+	if err != nil {
+		return c.String(http.StatusNotFound, "Instance not found")
+	}
+
+	if instance.LastWebhookAt == nil {
+		return c.HTML(http.StatusOK, `<div class="p-4 text-gray-500">Нет сохранённых запросов</div>`)
+	}
+
+	// Форматируем JSON для красивого отображения
+	var prettyHeaders, prettyBody []byte
+	json.Indent(prettyHeaders, instance.LastWebhookHeaders, "", "  ")
+	json.Indent(prettyBody, instance.LastWebhookBody, "", "  ")
+
+	return c.HTML(http.StatusOK, fmt.Sprintf(`
+        <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" id="webhook-modal">
+            <div class="relative top-20 mx-auto p-5 border w-[800px] shadow-lg rounded-md bg-white">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-medium">Последний запрос (%s)</h3>
+                    <button onclick="document.getElementById('webhook-modal').remove()" class="text-gray-500 hover:text-gray-700">✕</button>
+                </div>
+                <div class="mb-4">
+                    <h4 class="font-medium mb-2">Заголовки:</h4>
+                    <pre class="bg-gray-50 p-3 rounded text-sm overflow-auto max-h-40">%s</pre>
+                </div>
+                <div>
+                    <h4 class="font-medium mb-2">Тело запроса:</h4>
+                    <pre class="bg-gray-50 p-3 rounded text-sm overflow-auto max-h-96 font-mono">%s</pre>
+                </div>
+            </div>
+        </div>
+    `,
+		instance.LastWebhookAt.Format("02.01.2006 15:04:05"),
+		string(prettyHeaders),
+		string(prettyBody),
+	))
 }

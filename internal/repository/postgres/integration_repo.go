@@ -777,9 +777,13 @@ func (r *IntegrationRepository) GetInstanceByID(ctx context.Context, id string, 
 	var instance domain.IntegrationInstance
 	var encryptedToken string
 	var customSettings []byte
+	var lastHeaders, lastBody []byte
+	var lastAt sql.NullTime
 
 	query := `
-        SELECT id, template_id, user_id, name, chat_id, bot_token, is_active, custom_settings, created_at, updated_at
+        SELECT id, template_id, user_id, name, chat_id, bot_token, is_active, custom_settings,
+               last_webhook_headers, last_webhook_body, last_webhook_at,
+               created_at, updated_at
         FROM integration_instances
         WHERE id = $1 AND user_id = $2
     `
@@ -793,6 +797,9 @@ func (r *IntegrationRepository) GetInstanceByID(ctx context.Context, id string, 
 		&encryptedToken,
 		&instance.IsActive,
 		&customSettings,
+		&lastHeaders,
+		&lastBody,
+		&lastAt,
 		&instance.CreatedAt,
 		&instance.UpdatedAt,
 	)
@@ -811,6 +818,16 @@ func (r *IntegrationRepository) GetInstanceByID(ctx context.Context, id string, 
 		if err := json.Unmarshal(customSettings, &instance.CustomSettings); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal custom settings: %w", err)
 		}
+	}
+
+	if lastHeaders != nil {
+		instance.LastWebhookHeaders = lastHeaders
+	}
+	if lastBody != nil {
+		instance.LastWebhookBody = lastBody
+	}
+	if lastAt.Valid {
+		instance.LastWebhookAt = &lastAt.Time
 	}
 
 	return &instance, nil

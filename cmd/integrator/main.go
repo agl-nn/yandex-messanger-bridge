@@ -149,6 +149,7 @@ func main() {
 		webGroup.DELETE("/instances/:id", webHandler.DeleteInstance)
 		webGroup.GET("/instances/:id/edit", webHandler.EditInstanceForm)
 		webGroup.PUT("/instances/:id", webHandler.UpdateInstance)
+		webGroup.GET("/instances/:id/last-webhook", webHandler.GetLastWebhook)
 	}
 
 	// Статические файлы

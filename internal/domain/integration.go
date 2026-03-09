@@ -90,12 +90,17 @@ type IntegrationInstance struct {
 	UserID         string                 `db:"user_id" json:"user_id"`
 	Name           string                 `db:"name" json:"name"`
 	ChatID         string                 `db:"chat_id" json:"chat_id"`
-	BotToken       string                 `db:"bot_token" json:"-"` // не показываем в JSON
+	BotToken       string                 `db:"bot_token" json:"-"`
 	IsActive       bool                   `db:"is_active" json:"is_active"`
 	CustomSettings map[string]interface{} `db:"custom_settings" json:"custom_settings"`
-	CreatedAt      time.Time              `db:"created_at" json:"created_at"`
-	UpdatedAt      time.Time              `db:"updated_at" json:"updated_at"`
 
-	// Для удобства, подгружаем связанный шаблон
+	// Новые поля для хранения последнего вебхука
+	LastWebhookHeaders json.RawMessage `db:"last_webhook_headers" json:"last_webhook_headers,omitempty"`
+	LastWebhookBody    json.RawMessage `db:"last_webhook_body" json:"last_webhook_body,omitempty"`
+	LastWebhookAt      *time.Time      `db:"last_webhook_at" json:"last_webhook_at,omitempty"`
+
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+
 	Template *Template `db:"-" json:"template,omitempty"`
 }
