@@ -129,6 +129,12 @@ func (h *Handler) retrySend(integration *domain.Integration, message string, att
 
 // HandleInstanceWebhook обрабатывает вебхуки для экземпляров интеграций
 func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) {
+	log.Info().
+		Str("instance_id", r.PathValue("id")).
+		Str("method", r.Method).
+		Str("url", r.URL.String()).
+		Msg("🔍 Webhook received")
+
 	instanceID := r.PathValue("id")
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
