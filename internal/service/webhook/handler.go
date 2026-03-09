@@ -132,7 +132,7 @@ func (h *Handler) retrySend(integration *domain.Integration, message string, att
 func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID разными способами для диагностики
 	pathValue := r.PathValue("id")
-	param := r.URL.Query().Get("id")
+	//param := r.URL.Query().Get("id")
 	pathParts := strings.Split(r.URL.Path, "/")
 	lastPart := pathParts[len(pathParts)-1]
 
