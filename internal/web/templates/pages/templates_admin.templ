@@ -6,7 +6,7 @@ import (
     "yandex-messenger-bridge/internal/web/templates/components"
 )
 
-templ TemplatesAdminPage(templates []*domain.Template, user *domain.User) {
+templ TemplatesAdminPage(templatesList []*domain.Template, user *domain.User) {
     @templates.Base("Управление шаблонами", user) {
         <div class="space-y-6">
             <div class="flex justify-between items-center">
@@ -31,7 +31,7 @@ templ TemplatesAdminPage(templates []*domain.Template, user *domain.User) {
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        for _, t := range templates {
+                        for _, t := range templatesList {
                             <tr>
                                 <td class="px-6 py-4 whitespace-nowrap text-2xl">{ t.Icon }</td>
                                 <td class="px-6 py-4 whitespace-nowrap font-medium">{ t.Name }</td>
