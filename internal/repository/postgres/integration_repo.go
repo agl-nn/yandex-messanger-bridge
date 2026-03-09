@@ -10,23 +10,30 @@ import (
 
 	"yandex-messenger-bridge/internal/domain"
 	repoInterface "yandex-messenger-bridge/internal/repository/interface"
+	"yandex-messenger-bridge/internal/service/encryption"
 )
 
 // IntegrationRepository - PostgreSQL реализация
 type IntegrationRepository struct {
-	db *sqlx.DB
+	db        *sqlx.DB
+	encryptor *encryption.Encryptor
 }
 
 // NewIntegrationRepository создает новый репозиторий
-func NewIntegrationRepository(db *sqlx.DB) repoInterface.IntegrationRepository {
-	return &IntegrationRepository{db: db}
+func NewIntegrationRepository(db *sqlx.DB, encryptor *encryption.Encryptor) repoInterface.IntegrationRepository {
+	return &IntegrationRepository{
+		db:        db,
+		encryptor: encryptor,
+	}
 }
+
+// ================ Методы для интеграций (старые) ================
 
 // Create создает новую интеграцию
 func (r *IntegrationRepository) Create(ctx context.Context, integration *domain.Integration) error {
 	query := `
-        INSERT INTO integrations (id, user_id, name, source_type, source_config, destination_type, destination_config, is_active, created_at, updated_at)
-        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+        INSERT INTO integrations (id, user_id, name, source_type, source_config, destination_type, destination_config, is_active, is_custom, template_id, created_at, updated_at)
+        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
         RETURNING id, created_at, updated_at
     `
 
@@ -48,6 +55,8 @@ func (r *IntegrationRepository) Create(ctx context.Context, integration *domain.
 		integration.DestinationType,
 		destConfigJSON,
 		integration.IsActive,
+		integration.IsCustom,
+		integration.TemplateID,
 	)
 
 	return row.Scan(&integration.ID, &integration.CreatedAt, &integration.UpdatedAt)
@@ -57,8 +66,8 @@ func (r *IntegrationRepository) Create(ctx context.Context, integration *domain.
 func (r *IntegrationRepository) Update(ctx context.Context, integration *domain.Integration) error {
 	query := `
         UPDATE integrations 
-        SET name = $1, source_config = $2, destination_config = $3, is_active = $4, updated_at = NOW()
-        WHERE id = $5 AND user_id = $6
+        SET name = $1, source_config = $2, destination_config = $3, is_active = $4, is_custom = $5, template_id = $6, updated_at = NOW()
+        WHERE id = $7 AND user_id = $8
     `
 
 	destConfigJSON, err := json.Marshal(integration.DestinationConfig)
@@ -76,6 +85,8 @@ func (r *IntegrationRepository) Update(ctx context.Context, integration *domain.
 		sourceConfigJSON,
 		destConfigJSON,
 		integration.IsActive,
+		integration.IsCustom,
+		integration.TemplateID,
 		integration.ID,
 		integration.UserID,
 	)
@@ -121,7 +132,7 @@ func (r *IntegrationRepository) FindByID(ctx context.Context, id string) (*domai
 	var sourceConfigJSON []byte
 
 	query := `
-        SELECT id, user_id, name, source_type, source_config, destination_type, destination_config, is_active, created_at, updated_at
+        SELECT id, user_id, name, source_type, source_config, destination_type, destination_config, is_active, is_custom, template_id, created_at, updated_at
         FROM integrations
         WHERE id = $1
     `
@@ -135,6 +146,8 @@ func (r *IntegrationRepository) FindByID(ctx context.Context, id string) (*domai
 		&integration.DestinationType,
 		&destConfigJSON,
 		&integration.IsActive,
+		&integration.IsCustom,
+		&integration.TemplateID,
 		&integration.CreatedAt,
 		&integration.UpdatedAt,
 	)
@@ -160,7 +173,7 @@ func (r *IntegrationRepository) FindByIDAndUser(ctx context.Context, id string, 
 	var sourceConfigJSON []byte
 
 	query := `
-        SELECT id, user_id, name, source_type, source_config, destination_type, destination_config, is_active, created_at, updated_at
+        SELECT id, user_id, name, source_type, source_config, destination_type, destination_config, is_active, is_custom, template_id, created_at, updated_at
         FROM integrations
         WHERE id = $1 AND user_id = $2
     `
@@ -174,6 +187,8 @@ func (r *IntegrationRepository) FindByIDAndUser(ctx context.Context, id string, 
 		&integration.DestinationType,
 		&destConfigJSON,
 		&integration.IsActive,
+		&integration.IsCustom,
+		&integration.TemplateID,
 		&integration.CreatedAt,
 		&integration.UpdatedAt,
 	)
@@ -197,7 +212,7 @@ func (r *IntegrationRepository) FindByUserID(ctx context.Context, userID string)
 	var integrations []*domain.Integration
 
 	query := `
-        SELECT id, user_id, name, source_type, source_config, destination_type, destination_config, is_active, created_at, updated_at
+        SELECT id, user_id, name, source_type, source_config, destination_type, destination_config, is_active, is_custom, template_id, created_at, updated_at
         FROM integrations
         WHERE user_id = $1
         ORDER BY created_at DESC
@@ -223,6 +238,8 @@ func (r *IntegrationRepository) FindByUserID(ctx context.Context, userID string)
 			&integration.DestinationType,
 			&destConfigJSON,
 			&integration.IsActive,
+			&integration.IsCustom,
+			&integration.TemplateID,
 			&integration.CreatedAt,
 			&integration.UpdatedAt,
 		)
@@ -249,7 +266,7 @@ func (r *IntegrationRepository) FindAll(ctx context.Context) ([]*domain.Integrat
 	var integrations []*domain.Integration
 
 	query := `
-        SELECT id, user_id, name, source_type, source_config, destination_type, destination_config, is_active, created_at, updated_at
+        SELECT id, user_id, name, source_type, source_config, destination_type, destination_config, is_active, is_custom, template_id, created_at, updated_at
         FROM integrations
         ORDER BY created_at DESC
     `
@@ -274,6 +291,8 @@ func (r *IntegrationRepository) FindAll(ctx context.Context) ([]*domain.Integrat
 			&integration.DestinationType,
 			&destConfigJSON,
 			&integration.IsActive,
+			&integration.IsCustom,
+			&integration.TemplateID,
 			&integration.CreatedAt,
 			&integration.UpdatedAt,
 		)
@@ -485,19 +504,23 @@ func (r *IntegrationRepository) DeleteAPIKey(ctx context.Context, id string, use
 	return nil
 }
 
-// ================ Методы для работы с шаблонами ================
+// ================ МЕТОДЫ ДЛЯ ШАБЛОНОВ ================
 
 // CreateTemplate создает новый шаблон
 func (r *IntegrationRepository) CreateTemplate(ctx context.Context, template *domain.Template) error {
 	query := `
-        INSERT INTO templates (id, integration_id, template_text, sample_payload, created_at, updated_at)
-        VALUES (gen_random_uuid(), $1, $2, $3, NOW(), NOW())
+        INSERT INTO templates (id, name, description, icon, template_text, is_public, created_by, sample_payload, created_at, updated_at)
+        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
         RETURNING id, created_at, updated_at
     `
 
 	return r.db.QueryRowContext(ctx, query,
-		template.IntegrationID,
+		template.Name,
+		template.Description,
+		template.Icon,
 		template.TemplateText,
+		template.IsPublic,
+		template.CreatedBy,
 		template.SamplePayload,
 	).Scan(&template.ID, &template.CreatedAt, &template.UpdatedAt)
 }
@@ -506,12 +529,17 @@ func (r *IntegrationRepository) CreateTemplate(ctx context.Context, template *do
 func (r *IntegrationRepository) UpdateTemplate(ctx context.Context, template *domain.Template) error {
 	query := `
         UPDATE templates 
-        SET template_text = $1, sample_payload = $2, updated_at = NOW()
-        WHERE id = $3
+        SET name = $1, description = $2, icon = $3, template_text = $4, 
+            is_public = $5, sample_payload = $6, updated_at = NOW()
+        WHERE id = $7
     `
 
 	result, err := r.db.ExecContext(ctx, query,
+		template.Name,
+		template.Description,
+		template.Icon,
 		template.TemplateText,
+		template.IsPublic,
 		template.SamplePayload,
 		template.ID,
 	)
@@ -528,36 +556,6 @@ func (r *IntegrationRepository) UpdateTemplate(ctx context.Context, template *do
 	}
 
 	return nil
-}
-
-// GetTemplateByIntegrationID получает шаблон по ID интеграции
-func (r *IntegrationRepository) GetTemplateByIntegrationID(ctx context.Context, integrationID string) (*domain.Template, error) {
-	var template domain.Template
-	var samplePayload []byte
-
-	query := `
-        SELECT id, integration_id, template_text, sample_payload, created_at, updated_at
-        FROM templates
-        WHERE integration_id = $1
-    `
-
-	err := r.db.QueryRowContext(ctx, query, integrationID).Scan(
-		&template.ID,
-		&template.IntegrationID,
-		&template.TemplateText,
-		&samplePayload,
-		&template.CreatedAt,
-		&template.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if samplePayload != nil {
-		template.SamplePayload = samplePayload
-	}
-
-	return &template, nil
 }
 
 // DeleteTemplate удаляет шаблон
@@ -580,7 +578,374 @@ func (r *IntegrationRepository) DeleteTemplate(ctx context.Context, id string) e
 	return nil
 }
 
-// FindWithTemplate загружает интеграцию вместе с шаблоном (если есть)
+// GetTemplateByID получает шаблон по ID
+func (r *IntegrationRepository) GetTemplateByID(ctx context.Context, id string) (*domain.Template, error) {
+	var template domain.Template
+	var samplePayload []byte
+	var integrationID sql.NullString
+
+	query := `
+        SELECT id, name, description, icon, template_text, is_public, created_by, sample_payload, created_at, updated_at, integration_id
+        FROM templates
+        WHERE id = $1
+    `
+
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&template.ID,
+		&template.Name,
+		&template.Description,
+		&template.Icon,
+		&template.TemplateText,
+		&template.IsPublic,
+		&template.CreatedBy,
+		&samplePayload,
+		&template.CreatedAt,
+		&template.UpdatedAt,
+		&integrationID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if samplePayload != nil {
+		template.SamplePayload = samplePayload
+	}
+
+	if integrationID.Valid {
+		template.IntegrationID = &integrationID.String
+	}
+
+	return &template, nil
+}
+
+// ListTemplates возвращает список доступных шаблонов
+func (r *IntegrationRepository) ListTemplates(ctx context.Context, userID string, includePublic bool) ([]*domain.Template, error) {
+	var templates []*domain.Template
+
+	query := `
+        SELECT id, name, description, icon, template_text, is_public, created_by, sample_payload, created_at, updated_at, integration_id
+        FROM templates
+        WHERE created_by = $1 OR (is_public = true AND $2 = true)
+        ORDER BY name
+    `
+
+	rows, err := r.db.QueryContext(ctx, query, userID, includePublic)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var template domain.Template
+		var samplePayload []byte
+		var integrationID sql.NullString
+
+		err := rows.Scan(
+			&template.ID,
+			&template.Name,
+			&template.Description,
+			&template.Icon,
+			&template.TemplateText,
+			&template.IsPublic,
+			&template.CreatedBy,
+			&samplePayload,
+			&template.CreatedAt,
+			&template.UpdatedAt,
+			&integrationID,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if samplePayload != nil {
+			template.SamplePayload = samplePayload
+		}
+
+		if integrationID.Valid {
+			template.IntegrationID = &integrationID.String
+		}
+
+		templates = append(templates, &template)
+	}
+
+	return templates, nil
+}
+
+// ================ МЕТОДЫ ДЛЯ ЭКЗЕМПЛЯРОВ ================
+
+// CreateInstance создает новый экземпляр интеграции
+func (r *IntegrationRepository) CreateInstance(ctx context.Context, instance *domain.IntegrationInstance) error {
+	// Шифруем токен перед сохранением
+	encryptedToken, err := r.encryptor.Encrypt(instance.BotToken)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt bot token: %w", err)
+	}
+
+	customSettingsJSON, err := json.Marshal(instance.CustomSettings)
+	if err != nil {
+		return fmt.Errorf("failed to marshal custom settings: %w", err)
+	}
+
+	query := `
+        INSERT INTO integration_instances (id, template_id, user_id, name, chat_id, bot_token, is_active, custom_settings, created_at, updated_at)
+        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+        RETURNING id, created_at, updated_at
+    `
+
+	return r.db.QueryRowContext(ctx, query,
+		instance.TemplateID,
+		instance.UserID,
+		instance.Name,
+		instance.ChatID,
+		encryptedToken,
+		instance.IsActive,
+		customSettingsJSON,
+	).Scan(&instance.ID, &instance.CreatedAt, &instance.UpdatedAt)
+}
+
+// UpdateInstance обновляет экземпляр
+func (r *IntegrationRepository) UpdateInstance(ctx context.Context, instance *domain.IntegrationInstance) error {
+	customSettingsJSON, err := json.Marshal(instance.CustomSettings)
+	if err != nil {
+		return fmt.Errorf("failed to marshal custom settings: %w", err)
+	}
+
+	query := `
+        UPDATE integration_instances 
+        SET name = $1, chat_id = $2, is_active = $3, custom_settings = $4, updated_at = NOW()
+        WHERE id = $5 AND user_id = $6
+    `
+
+	result, err := r.db.ExecContext(ctx, query,
+		instance.Name,
+		instance.ChatID,
+		instance.IsActive,
+		customSettingsJSON,
+		instance.ID,
+		instance.UserID,
+	)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	// Если токен изменился, обновляем отдельно
+	if instance.BotToken != "" && instance.BotToken != "***" {
+		encryptedToken, err := r.encryptor.Encrypt(instance.BotToken)
+		if err != nil {
+			return fmt.Errorf("failed to encrypt bot token: %w", err)
+		}
+
+		_, err = r.db.ExecContext(ctx, "UPDATE integration_instances SET bot_token = $1 WHERE id = $2", encryptedToken, instance.ID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// DeleteInstance удаляет экземпляр
+func (r *IntegrationRepository) DeleteInstance(ctx context.Context, id string, userID string) error {
+	query := `DELETE FROM integration_instances WHERE id = $1 AND user_id = $2`
+
+	result, err := r.db.ExecContext(ctx, query, id, userID)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
+// GetInstanceByID получает экземпляр по ID
+func (r *IntegrationRepository) GetInstanceByID(ctx context.Context, id string, userID string) (*domain.IntegrationInstance, error) {
+	var instance domain.IntegrationInstance
+	var encryptedToken string
+	var customSettings []byte
+
+	query := `
+        SELECT id, template_id, user_id, name, chat_id, bot_token, is_active, custom_settings, created_at, updated_at
+        FROM integration_instances
+        WHERE id = $1 AND user_id = $2
+    `
+
+	err := r.db.QueryRowContext(ctx, query, id, userID).Scan(
+		&instance.ID,
+		&instance.TemplateID,
+		&instance.UserID,
+		&instance.Name,
+		&instance.ChatID,
+		&encryptedToken,
+		&instance.IsActive,
+		&customSettings,
+		&instance.CreatedAt,
+		&instance.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Расшифровываем токен
+	decryptedToken, err := r.encryptor.Decrypt(encryptedToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt bot token: %w", err)
+	}
+	instance.BotToken = decryptedToken
+
+	if customSettings != nil {
+		if err := json.Unmarshal(customSettings, &instance.CustomSettings); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal custom settings: %w", err)
+		}
+	}
+
+	return &instance, nil
+}
+
+// ListInstances возвращает список экземпляров пользователя
+func (r *IntegrationRepository) ListInstances(ctx context.Context, userID string) ([]*domain.IntegrationInstance, error) {
+	var instances []*domain.IntegrationInstance
+
+	query := `
+        SELECT i.id, i.template_id, i.user_id, i.name, i.chat_id, i.is_active, i.custom_settings, i.created_at, i.updated_at,
+               t.id as template_id, t.name as template_name, t.icon, t.description, t.template_text
+        FROM integration_instances i
+        LEFT JOIN templates t ON i.template_id = t.id
+        WHERE i.user_id = $1
+        ORDER BY i.created_at DESC
+    `
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var instance domain.IntegrationInstance
+		var template domain.Template
+		var customSettings []byte
+		var templateID, templateName, templateIcon, templateDescription, templateText sql.NullString
+
+		err := rows.Scan(
+			&instance.ID,
+			&instance.TemplateID,
+			&instance.UserID,
+			&instance.Name,
+			&instance.ChatID,
+			&instance.IsActive,
+			&customSettings,
+			&instance.CreatedAt,
+			&instance.UpdatedAt,
+			&templateID,
+			&templateName,
+			&templateIcon,
+			&templateDescription,
+			&templateText,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if customSettings != nil {
+			if err := json.Unmarshal(customSettings, &instance.CustomSettings); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal custom settings: %w", err)
+			}
+		}
+
+		// Заполняем шаблон, если он есть
+		if templateID.Valid {
+			template.ID = templateID.String
+			template.Name = templateName.String
+			if templateIcon.Valid {
+				template.Icon = templateIcon.String
+			}
+			if templateDescription.Valid {
+				template.Description = templateDescription.String
+			}
+			if templateText.Valid {
+				template.TemplateText = templateText.String
+			}
+			instance.Template = &template
+		}
+
+		instances = append(instances, &instance)
+	}
+
+	return instances, nil
+}
+
+// GetInstanceWithTemplate получает экземпляр вместе с шаблоном
+func (r *IntegrationRepository) GetInstanceWithTemplate(ctx context.Context, id string, userID string) (*domain.IntegrationInstance, error) {
+	instance, err := r.GetInstanceByID(ctx, id, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Загружаем шаблон
+	template, err := r.GetTemplateByID(ctx, instance.TemplateID)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	if err == nil {
+		instance.Template = template
+	}
+
+	return instance, nil
+}
+
+// ================ МЕТОДЫ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ================
+
+// GetTemplateByIntegrationID получает шаблон по ID интеграции (старый метод)
+func (r *IntegrationRepository) GetTemplateByIntegrationID(ctx context.Context, integrationID string) (*domain.Template, error) {
+	var template domain.Template
+	var samplePayload []byte
+
+	query := `
+        SELECT id, name, description, icon, template_text, is_public, created_by, sample_payload, created_at, updated_at, integration_id
+        FROM templates
+        WHERE integration_id = $1
+    `
+
+	err := r.db.QueryRowContext(ctx, query, integrationID).Scan(
+		&template.ID,
+		&template.Name,
+		&template.Description,
+		&template.Icon,
+		&template.TemplateText,
+		&template.IsPublic,
+		&template.CreatedBy,
+		&samplePayload,
+		&template.CreatedAt,
+		&template.UpdatedAt,
+		&template.IntegrationID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if samplePayload != nil {
+		template.SamplePayload = samplePayload
+	}
+
+	return &template, nil
+}
+
+// FindWithTemplate загружает интеграцию вместе с шаблоном (старый метод)
 func (r *IntegrationRepository) FindWithTemplate(ctx context.Context, integrationID string) (*domain.Integration, *domain.Template, error) {
 	// Сначала загружаем интеграцию
 	integration, err := r.FindByID(ctx, integrationID)

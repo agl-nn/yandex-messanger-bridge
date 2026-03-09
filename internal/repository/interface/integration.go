@@ -8,7 +8,7 @@ import (
 
 // IntegrationRepository - интерфейс для работы с интеграциями
 type IntegrationRepository interface {
-	// Интеграции
+	// Интеграции (старые)
 	Create(ctx context.Context, integration *domain.Integration) error
 	Update(ctx context.Context, integration *domain.Integration) error
 	Delete(ctx context.Context, id string, userID string) error
@@ -32,12 +32,24 @@ type IntegrationRepository interface {
 	UpdateAPIKeyLastUsed(ctx context.Context, id string) error
 	DeleteAPIKey(ctx context.Context, id string, userID string) error
 
-	// Для работы с шаблонами (НОВЫЕ МЕТОДЫ)
+	// ================ НОВЫЕ МЕТОДЫ ДЛЯ ШАБЛОНОВ ================
+
+	// Шаблоны
 	CreateTemplate(ctx context.Context, template *domain.Template) error
 	UpdateTemplate(ctx context.Context, template *domain.Template) error
-	GetTemplateByIntegrationID(ctx context.Context, integrationID string) (*domain.Template, error)
 	DeleteTemplate(ctx context.Context, id string) error
+	GetTemplateByID(ctx context.Context, id string) (*domain.Template, error)
+	ListTemplates(ctx context.Context, userID string, includePublic bool) ([]*domain.Template, error)
 
-	// Новый метод для загрузки интеграции с шаблоном
+	// Экземпляры
+	CreateInstance(ctx context.Context, instance *domain.IntegrationInstance) error
+	UpdateInstance(ctx context.Context, instance *domain.IntegrationInstance) error
+	DeleteInstance(ctx context.Context, id string, userID string) error
+	GetInstanceByID(ctx context.Context, id string, userID string) (*domain.IntegrationInstance, error)
+	ListInstances(ctx context.Context, userID string) ([]*domain.IntegrationInstance, error)
+	GetInstanceWithTemplate(ctx context.Context, id string, userID string) (*domain.IntegrationInstance, error)
+
+	// Методы для обратной совместимости
+	GetTemplateByIntegrationID(ctx context.Context, integrationID string) (*domain.Template, error)
 	FindWithTemplate(ctx context.Context, integrationID string) (*domain.Integration, *domain.Template, error)
 }

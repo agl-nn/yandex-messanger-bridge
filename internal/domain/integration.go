@@ -18,7 +18,7 @@ type User struct {
 	UpdatedAt    time.Time `db:"updated_at" json:"updated_at"`
 }
 
-// Integration - основная модель интеграции
+// Integration - основная модель интеграции (старая, для обратной совместимости)
 type Integration struct {
 	ID                string                 `db:"id" json:"id"`
 	UserID            string                 `db:"user_id" json:"user_id"`
@@ -65,12 +65,36 @@ type APIKey struct {
 	ExpiresAt  *time.Time `db:"expires_at" json:"expires_at"`
 }
 
-// Template - кастомный шаблон для Liquid
+// Template - постоянный шаблон интеграции (новая структура)
 type Template struct {
 	ID            string          `db:"id" json:"id"`
-	IntegrationID string          `db:"integration_id" json:"integration_id"`
+	Name          string          `db:"name" json:"name"`
+	Description   string          `db:"description" json:"description,omitempty"`
+	Icon          string          `db:"icon" json:"icon,omitempty"`
 	TemplateText  string          `db:"template_text" json:"template_text"`
+	IsPublic      bool            `db:"is_public" json:"is_public"`
+	CreatedBy     string          `db:"created_by" json:"created_by"`
 	SamplePayload json.RawMessage `db:"sample_payload" json:"sample_payload,omitempty"`
 	CreatedAt     time.Time       `db:"created_at" json:"created_at"`
 	UpdatedAt     time.Time       `db:"updated_at" json:"updated_at"`
+
+	// Для обратной совместимости со старой структурой
+	IntegrationID *string `db:"integration_id" json:"integration_id,omitempty"`
+}
+
+// IntegrationInstance - экземпляр интеграции (использование шаблона)
+type IntegrationInstance struct {
+	ID             string                 `db:"id" json:"id"`
+	TemplateID     string                 `db:"template_id" json:"template_id"`
+	UserID         string                 `db:"user_id" json:"user_id"`
+	Name           string                 `db:"name" json:"name"`
+	ChatID         string                 `db:"chat_id" json:"chat_id"`
+	BotToken       string                 `db:"bot_token" json:"-"` // не показываем в JSON
+	IsActive       bool                   `db:"is_active" json:"is_active"`
+	CustomSettings map[string]interface{} `db:"custom_settings" json:"custom_settings"`
+	CreatedAt      time.Time              `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time              `db:"updated_at" json:"updated_at"`
+
+	// Для удобства, подгружаем связанный шаблон
+	Template *Template `db:"-" json:"template,omitempty"`
 }
