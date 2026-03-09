@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"time"
+	"strings"
 
 	"github.com/osteele/liquid"
 	"github.com/rs/zerolog/log"
@@ -131,7 +132,13 @@ func (h *Handler) retrySend(integration *domain.Integration, message string, att
 func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID
 	instanceID := r.PathValue("id")
-
+	// Если не сработало, берём из URL вручную
+	if instanceID == "" {
+		pathParts := strings.Split(r.URL.Path, "/")
+		if len(pathParts) > 0 {
+			instanceID = pathParts[len(pathParts)-1]
+		}
+	}
 	log.Info().
 		Str("instance_id", instanceID).
 		Str("method", r.Method).
