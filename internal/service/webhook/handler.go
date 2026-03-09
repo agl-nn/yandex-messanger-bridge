@@ -129,13 +129,28 @@ func (h *Handler) retrySend(integration *domain.Integration, message string, att
 
 // HandleInstanceWebhook обрабатывает вебхуки для экземпляров интеграций
 func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) {
+	// Получаем ID разными способами для диагностики
+	pathValue := r.PathValue("id")
+	param := r.URL.Query().Get("id")
+	pathParts := strings.Split(r.URL.Path, "/")
+	lastPart := pathParts[len(pathParts)-1]
+
 	log.Info().
 		Str("instance_id", r.PathValue("id")).
 		Str("method", r.Method).
 		Str("url", r.URL.String()).
 		Msg("🔍 Webhook received")
 
-	instanceID := r.PathValue("id")
+	instanceID := pathValue
+	if instanceID == "" {
+		instanceID = lastPart
+	}
+
+	if instanceID == "" {
+		log.Error().Msg("Empty instance ID after all attempts")
+		http.Error(w, "Instance ID required", http.StatusBadRequest)
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
