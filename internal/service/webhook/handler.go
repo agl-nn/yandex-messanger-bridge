@@ -130,24 +130,17 @@ func (h *Handler) retrySend(integration *domain.Integration, message string, att
 
 // HandleInstanceWebhook обрабатывает вебхуки для экземпляров интеграций
 func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) {
-	// Получаем ID разными способами для диагностики
-	pathValue := r.PathValue("id")
-	pathParts := strings.Split(r.URL.Path, "/")
-	lastPart := pathParts[len(pathParts)-1]
+	// Получаем ID
+	instanceID := r.PathValue("id")
 
 	log.Info().
-		Str("instance_id", r.PathValue("id")).
+		Str("instance_id", instanceID).
 		Str("method", r.Method).
 		Str("url", r.URL.String()).
 		Msg("🔍 Webhook received")
 
-	instanceID := pathValue
 	if instanceID == "" {
-		instanceID = lastPart
-	}
-
-	if instanceID == "" {
-		log.Error().Msg("Empty instance ID after all attempts")
+		log.Error().Msg("Empty instance ID")
 		http.Error(w, "Instance ID required", http.StatusBadRequest)
 		return
 	}
@@ -172,36 +165,20 @@ func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Instance not found", http.StatusNotFound)
 		return
 	}
-	// СОХРАНЯЕМ ПОСЛЕДНИЙ ВЕБХУК
-	headers, _ := json.Marshal(r.Header)
-	now := time.Now()
 
-	// Сохраняем последний вебхук
+	// Сохраняем последний вебхук (ОДИН РАЗ)
 	headers, _ := json.Marshal(r.Header)
 	now := time.Now()
 
 	if err := h.repo.UpdateInstanceLastWebhook(ctx, instanceID, headers, body, now); err != nil {
 		log.Error().Err(err).Msg("Failed to save last webhook")
+		// Не прерываем обработку
 	}
-	// Приводим репозиторий к конкретному типу для доступа к db
-	if repo, ok := h.repo.(*postgres.IntegrationRepository); ok {
-		_, err = repo.DB().ExecContext(ctx, updateQuery, headers, body, now, instanceID)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to save last webhook")
-		}
-	}
+
 	// Проверяем, активна ли интеграция
 	if !instance.IsActive {
 		log.Warn().Str("id", instanceID).Msg("Instance is inactive")
 		http.Error(w, "Instance is inactive", http.StatusForbidden)
-		return
-	}
-
-	// Читаем тело запроса
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to read body")
-		http.Error(w, "Failed to read body", http.StatusBadRequest)
 		return
 	}
 
@@ -218,7 +195,7 @@ func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) 
 		Str("instance_id", instanceID).
 		Str("template", instance.Template.Name).
 		Interface("data", data).
-		Msg("Webhook received")
+		Msg("Processing webhook")
 
 	// Применяем Liquid шаблон
 	engine := liquid.NewEngine()
@@ -261,25 +238,4 @@ func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) 
 	log.Info().Str("instance_id", instanceID).Msg("Message sent successfully")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"status":"ok"}`))
-}
-
-// saveDeliveryLog сохраняет лог доставки
-func (h *Handler) saveDeliveryLog(ctx context.Context, instanceID string, request []byte, status int, response []byte, err error) {
-	logEntry := &domain.DeliveryLog{
-		IntegrationID:  instanceID,
-		SourceEventID:  "",
-		RequestPayload: request,
-		ResponseStatus: status,
-		ResponseBody:   response,
-		DeliveredAt:    time.Now(),
-		DurationMS:     0,
-	}
-
-	if err != nil {
-		logEntry.Error = err.Error()
-	}
-
-	if err := h.repo.CreateDeliveryLog(ctx, logEntry); err != nil {
-		log.Error().Err(err).Msg("Failed to save delivery log")
-	}
 }
