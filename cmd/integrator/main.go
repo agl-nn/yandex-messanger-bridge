@@ -143,7 +143,7 @@ func main() {
 		webGroup.GET("/templates", webHandler.TemplatesUserPage)
 		webGroup.GET("/templates/:id/use", webHandler.InstanceCreatePage)
 		webGroup.POST("/instances", webHandler.CreateInstance)
-		//webGroup.GET("/instances", webHandler.InstancesListPage) // добавим позже
+		webGroup.GET("/instances", webHandler.InstancesListPage)
 	}
 
 	// Статические файлы

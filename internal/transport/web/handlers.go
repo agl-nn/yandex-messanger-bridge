@@ -579,3 +579,20 @@ func (h *Handler) CreateInstance(c echo.Context) error {
 	log.Info().Str("id", instance.ID).Str("name", name).Msg("Instance created")
 	return c.Redirect(http.StatusSeeOther, "/instances")
 }
+
+// InstancesListPage отображает список экземпляров пользователя
+func (h *Handler) InstancesListPage(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get user")
+	}
+
+	instances, err := h.repo.ListInstances(c.Request().Context(), userID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to load instances")
+		return c.String(http.StatusInternalServerError, "Failed to load instances")
+	}
+
+	return pages.InstancesListPage(instances, user).Render(c.Request().Context(), c.Response().Writer)
+}
