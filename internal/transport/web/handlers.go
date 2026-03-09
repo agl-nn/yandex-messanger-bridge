@@ -480,12 +480,13 @@ func (h *Handler) CreateTemplate(c echo.Context) error {
 	} else {
 		// Создание нового шаблона
 		template := &domain.Template{
-			Name:         name,
-			Icon:         icon,
-			Description:  description,
-			TemplateText: templateText,
-			IsPublic:     isPublic,
-			CreatedBy:    sql.NullString{String: userID, Valid: userID != ""},
+			Name:          name,
+			Icon:          icon,
+			Description:   description,
+			TemplateText:  templateText,
+			IsPublic:      isPublic,
+			CreatedBy:     sql.NullString{String: userID, Valid: userID != ""},
+			SamplePayload: nil,
 		}
 
 		if err := h.repo.CreateTemplate(c.Request().Context(), template); err != nil {
