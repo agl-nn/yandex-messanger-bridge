@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"database/sql"
 	"encoding/json"
 	"time"
 )
@@ -65,7 +66,7 @@ type APIKey struct {
 	ExpiresAt  *time.Time `db:"expires_at" json:"expires_at"`
 }
 
-// Template - постоянный шаблон интеграции (новая структура)
+// Template - постоянный шаблон интеграции
 type Template struct {
 	ID            string          `db:"id" json:"id"`
 	Name          string          `db:"name" json:"name"`
@@ -73,7 +74,7 @@ type Template struct {
 	Icon          string          `db:"icon" json:"icon,omitempty"`
 	TemplateText  string          `db:"template_text" json:"template_text"`
 	IsPublic      bool            `db:"is_public" json:"is_public"`
-	CreatedBy     string          `db:"created_by" json:"created_by"`
+	CreatedBy     sql.NullString  `db:"created_by" json:"created_by,omitempty"`
 	SamplePayload json.RawMessage `db:"sample_payload" json:"sample_payload,omitempty"`
 	CreatedAt     time.Time       `db:"created_at" json:"created_at"`
 	UpdatedAt     time.Time       `db:"updated_at" json:"updated_at"`
