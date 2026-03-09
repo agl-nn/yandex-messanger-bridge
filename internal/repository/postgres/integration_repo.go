@@ -889,9 +889,63 @@ func (r *IntegrationRepository) ListInstances(ctx context.Context, userID string
 	return instances, nil
 }
 
-// GetInstanceWithTemplate получает экземпляр вместе с шаблоном
+// GetInstanceByIDPublic получает экземпляр по ID без проверки user_id (для вебхуков)
+func (r *IntegrationRepository) GetInstanceByIDPublic(ctx context.Context, id string) (*domain.IntegrationInstance, error) {
+	var instance domain.IntegrationInstance
+	var encryptedToken string
+	var customSettings []byte
+
+	query := `
+        SELECT id, template_id, user_id, name, chat_id, bot_token, is_active, custom_settings, created_at, updated_at
+        FROM integration_instances
+        WHERE id = $1
+    `
+
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&instance.ID,
+		&instance.TemplateID,
+		&instance.UserID,
+		&instance.Name,
+		&instance.ChatID,
+		&encryptedToken,
+		&instance.IsActive,
+		&customSettings,
+		&instance.CreatedAt,
+		&instance.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Расшифровываем токен
+	decryptedToken, err := r.encryptor.Decrypt(encryptedToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt bot token: %w", err)
+	}
+	instance.BotToken = decryptedToken
+
+	if customSettings != nil {
+		if err := json.Unmarshal(customSettings, &instance.CustomSettings); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal custom settings: %w", err)
+		}
+	}
+
+	return &instance, nil
+}
+
+// GetInstanceWithTemplate получает экземпляр вместе с шаблоном (обновлённая версия)
 func (r *IntegrationRepository) GetInstanceWithTemplate(ctx context.Context, id string, userID string) (*domain.IntegrationInstance, error) {
-	instance, err := r.GetInstanceByID(ctx, id, userID)
+	var instance *domain.IntegrationInstance
+	var err error
+
+	if userID == "" {
+		// Публичный доступ (вебхуки)
+		instance, err = r.GetInstanceByIDPublic(ctx, id)
+	} else {
+		// Доступ пользователя
+		instance, err = r.GetInstanceByID(ctx, id, userID)
+	}
+
 	if err != nil {
 		return nil, err
 	}

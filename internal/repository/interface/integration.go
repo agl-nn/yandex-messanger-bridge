@@ -52,4 +52,6 @@ type IntegrationRepository interface {
 	// Методы для обратной совместимости
 	GetTemplateByIntegrationID(ctx context.Context, integrationID string) (*domain.Template, error)
 	FindWithTemplate(ctx context.Context, integrationID string) (*domain.Integration, *domain.Template, error)
+	// GetInstanceByIDPublic получает экземпляр по ID без проверки user_id (для вебхуков)
+	GetInstanceByIDPublic(ctx context.Context, id string) (*domain.IntegrationInstance, error)
 }
