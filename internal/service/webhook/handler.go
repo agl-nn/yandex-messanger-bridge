@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"time"
-	"strings"
 
 	"github.com/osteele/liquid"
 	"github.com/rs/zerolog/log"
@@ -238,4 +237,25 @@ func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) 
 	log.Info().Str("instance_id", instanceID).Msg("Message sent successfully")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"status":"ok"}`))
+}
+
+// saveDeliveryLog сохраняет лог доставки
+func (h *Handler) saveDeliveryLog(ctx context.Context, instanceID string, request []byte, status int, response []byte, err error) {
+	logEntry := &domain.DeliveryLog{
+		IntegrationID:  instanceID,
+		SourceEventID:  "",
+		RequestPayload: request,
+		ResponseStatus: status,
+		ResponseBody:   response,
+		DeliveredAt:    time.Now(),
+		DurationMS:     0,
+	}
+
+	if err != nil {
+		logEntry.Error = err.Error()
+	}
+
+	if err := h.repo.CreateDeliveryLog(ctx, logEntry); err != nil {
+		log.Error().Err(err).Msg("Failed to save delivery log")
+	}
 }
