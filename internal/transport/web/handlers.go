@@ -563,12 +563,19 @@ func (h *Handler) CreateInstance(c echo.Context) error {
 		return c.String(http.StatusForbidden, "Access denied")
 	}
 
+	// Шифруем токен перед сохранением
+	encryptedToken, err := h.encryptor.Encrypt(botToken)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to encrypt bot token")
+		return c.String(http.StatusInternalServerError, "Failed to encrypt token")
+	}
+
 	instance := &domain.IntegrationInstance{
 		TemplateID: templateID,
 		UserID:     userID,
 		Name:       name,
 		ChatID:     chatID,
-		BotToken:   botToken,
+		BotToken:   encryptedToken,
 		IsActive:   true,
 	}
 
