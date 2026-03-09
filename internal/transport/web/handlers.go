@@ -459,3 +459,82 @@ func (h *Handler) DeleteTemplate(c echo.Context) error {
 	log.Info().Str("id", id).Msg("Template deleted")
 	return h.TemplatesAdminPage(c)
 }
+
+// TemplateEditPage отображает страницу создания/редактирования шаблона
+func (h *Handler) TemplateEditPage(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil || user.Role != "admin" {
+		return c.String(http.StatusForbidden, "Доступ запрещен")
+	}
+
+	id := c.Param("id")
+	var template *domain.Template
+	if id != "" && id != "new" {
+		template, err = h.repo.GetTemplateByID(c.Request().Context(), id)
+		if err != nil {
+			return c.String(http.StatusNotFound, "Template not found")
+		}
+	}
+
+	return pages.TemplateEditPage(template, user).Render(c.Request().Context(), c.Response().Writer)
+}
+
+// CreateTemplate создает новый шаблон
+func (h *Handler) CreateTemplate(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil || user.Role != "admin" {
+		return c.String(http.StatusForbidden, "Доступ запрещен")
+	}
+
+	name := c.FormValue("name")
+	icon := c.FormValue("icon")
+	description := c.FormValue("description")
+	templateText := c.FormValue("template_text")
+	isPublic := c.FormValue("is_public") == "on"
+	id := c.FormValue("id")
+
+	if name == "" || templateText == "" {
+		return c.String(http.StatusBadRequest, "Name and template text are required")
+	}
+
+	if id != "" {
+		// Обновление существующего шаблона
+		template, err := h.repo.GetTemplateByID(c.Request().Context(), id)
+		if err != nil {
+			return c.String(http.StatusNotFound, "Template not found")
+		}
+
+		template.Name = name
+		template.Icon = icon
+		template.Description = description
+		template.TemplateText = templateText
+		template.IsPublic = isPublic
+
+		if err := h.repo.UpdateTemplate(c.Request().Context(), template); err != nil {
+			log.Error().Err(err).Msg("Failed to update template")
+			return c.String(http.StatusInternalServerError, "Failed to update template")
+		}
+		log.Info().Str("id", id).Str("name", name).Msg("Template updated")
+	} else {
+		// Создание нового шаблона
+		template := &domain.Template{
+			Name:         name,
+			Icon:         icon,
+			Description:  description,
+			TemplateText: templateText,
+			IsPublic:     isPublic,
+			CreatedBy:    sql.NullString{String: userID, Valid: userID != ""},
+		}
+
+		if err := h.repo.CreateTemplate(c.Request().Context(), template); err != nil {
+			log.Error().Err(err).Msg("Failed to create template")
+			return c.String(http.StatusInternalServerError, "Failed to create template")
+		}
+		log.Info().Str("id", template.ID).Str("name", name).Msg("Template created")
+	}
+
+	return c.Redirect(http.StatusSeeOther, "/admin/templates")
+}

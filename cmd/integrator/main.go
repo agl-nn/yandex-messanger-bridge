@@ -135,10 +135,9 @@ func main() {
 		webGroup.POST("/logout", webHandler.Logout)
 		// Админка для шаблонов (только для админов)
 		webGroup.GET("/admin/templates", webHandler.TemplatesAdminPage)
-		webGroup.GET("/admin/templates/new", webHandler.NewTemplateForm)
+		webGroup.GET("/admin/templates/new", webHandler.TemplateEditPage)
+		webGroup.GET("/admin/templates/:id/edit", webHandler.TemplateEditPage)
 		webGroup.POST("/admin/templates", webHandler.CreateTemplate)
-		webGroup.GET("/admin/templates/:id/edit", webHandler.EditTemplateForm)
-		webGroup.PUT("/admin/templates/:id", webHandler.UpdateTemplate)
 		webGroup.DELETE("/admin/templates/:id", webHandler.DeleteTemplate)
 	}
 

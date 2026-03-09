@@ -1,0 +1,121 @@
+package pages
+
+import (
+    "yandex-messenger-bridge/internal/domain"
+    "yandex-messenger-bridge/internal/web/templates"
+)
+
+templ TemplateEditPage(template *domain.Template, user *domain.User) {
+    @templates.Base("Редактирование шаблона", user) {
+        <div class="max-w-4xl mx-auto py-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                @PageHeader(template)
+
+                <form action="/admin/templates" method="POST" class="space-y-6">
+                    @HiddenID(template)
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Название</label>
+                        @NameInput(template)
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Иконка</label>
+                        @IconInput(template)
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Описание</label>
+                        @DescriptionInput(template)
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Liquid шаблон</label>
+                        @TemplateTextInput(template)
+                    </div>
+
+                    <div>
+                        @PublicCheckbox(template)
+                    </div>
+
+                    <div class="flex justify-end space-x-3">
+                        <a href="/admin/templates"
+                           class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition">
+                            Отмена
+                        </a>
+                        <button type="submit"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                            Сохранить
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+}
+
+templ PageHeader(template *domain.Template) {
+    if template != nil {
+        <h1 class="text-2xl font-bold mb-6">Редактирование шаблона</h1>
+    } else {
+        <h1 class="text-2xl font-bold mb-6">Создание шаблона</h1>
+    }
+}
+
+templ HiddenID(template *domain.Template) {
+    if template != nil {
+        <input type="hidden" name="id" value={ template.ID }/>
+    }
+}
+
+templ NameInput(template *domain.Template) {
+    if template != nil {
+        <input type="text" name="name" value={ template.Name } class="w-full px-3 py-2 border border-gray-300 rounded-md" required/>
+    } else {
+        <input type="text" name="name" value="" class="w-full px-3 py-2 border border-gray-300 rounded-md" required/>
+    }
+}
+
+templ IconInput(template *domain.Template) {
+    if template != nil {
+        <input type="text" name="icon" value={ template.Icon } class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="🎯"/>
+    } else {
+        <input type="text" name="icon" value="" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="🎯"/>
+    }
+}
+
+templ DescriptionInput(template *domain.Template) {
+    <textarea name="description" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md">{
+        if template != nil {
+            template.Description
+        } else {
+            ""
+        }
+    }</textarea>
+}
+
+templ TemplateTextInput(template *domain.Template) {
+    <textarea name="template_text" rows="20" required class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm">{
+        if template != nil {
+            template.TemplateText
+        } else {
+            ""
+        }
+    }</textarea>
+    <p class="text-sm text-gray-500 mt-2">
+        <a href="https://shopify.github.io/liquid/" target="_blank" class="text-blue-600 hover:text-blue-800">
+            Документация Liquid
+        </a>
+    </p>
+}
+
+templ PublicCheckbox(template *domain.Template) {
+    <label class="flex items-center">
+        if template == nil || template.IsPublic {
+            <input type="checkbox" name="is_public" class="rounded border-gray-300 text-blue-600 shadow-sm" checked/>
+        } else {
+            <input type="checkbox" name="is_public" class="rounded border-gray-300 text-blue-600 shadow-sm"/>
+        }
+        <span class="ml-2 text-sm text-gray-700">Публичный шаблон</span>
+    </label>
+}
