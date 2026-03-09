@@ -69,44 +69,60 @@ templ HiddenID(template *domain.Template) {
 }
 
 templ NameInput(template *domain.Template) {
-    if template != nil {
-        <input type="text" name="name" value={ template.Name } class="w-full px-3 py-2 border border-gray-300 rounded-md" required/>
-    } else {
-        <input type="text" name="name" value="" class="w-full px-3 py-2 border border-gray-300 rounded-md" required/>
-    }
+    <div>
+        if template != nil {
+            <input type="text" name="name" value={ template.Name } class="w-full px-3 py-2 border border-gray-300 rounded-md" required/>
+        } else {
+            <input type="text" name="name" value="" class="w-full px-3 py-2 border border-gray-300 rounded-md" required/>
+        }
+    </div>
 }
 
 templ IconInput(template *domain.Template) {
-    if template != nil {
-        <input type="text" name="icon" value={ template.Icon } class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="🎯"/>
-    } else {
-        <input type="text" name="icon" value="" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="🎯"/>
-    }
+    <div>
+        if template != nil {
+            <input type="text" name="icon" value={ template.Icon } class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="🎯"/>
+        } else {
+            <input type="text" name="icon" value="" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="🎯"/>
+        }
+    </div>
 }
 
 templ DescriptionInput(template *domain.Template) {
-    <textarea name="description" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md">{
-        if template != nil {
-            template.Description
-        } else {
-            ""
-        }
-    }</textarea>
+    <div>
+        <textarea name="description" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+            @DescriptionContent(template)
+        </textarea>
+    </div>
+}
+
+templ DescriptionContent(template *domain.Template) {
+    if template != nil {
+        { template.Description }
+    } else {
+        { "" }
+    }
 }
 
 templ TemplateTextInput(template *domain.Template) {
-    <textarea name="template_text" rows="20" required class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm">{
-        if template != nil {
-            template.TemplateText
-        } else {
-            ""
-        }
-    }</textarea>
-    <p class="text-sm text-gray-500 mt-2">
-        <a href="https://shopify.github.io/liquid/" target="_blank" class="text-blue-600 hover:text-blue-800">
-            Документация Liquid
-        </a>
-    </p>
+    <div>
+        <textarea name="template_text" rows="20" required class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm">
+            @TemplateTextContent(template)
+        </textarea>
+        <p class="text-sm text-gray-500 mt-2">
+            <a href="https://shopify.github.io/liquid/" target="_blank" class="text-blue-600 hover:text-blue-800">
+                Документация Liquid
+            </a>
+        </p>
+    </div>
+}
+
+templ TemplateTextContent(template *domain.Template) {
+    if template != nil {
+        { template.TemplateText }
+    } else {
+        { "" }
+    }
 }
 
 templ PublicCheckbox(template *domain.Template) {
