@@ -58,5 +58,4 @@ type IntegrationRepository interface {
 	GetInstanceByIDPublic(ctx context.Context, id string) (*domain.IntegrationInstance, error)
 	// UpdateInstanceLastWebhook обновляет поля последнего вебхука
 	UpdateInstanceLastWebhook(ctx context.Context, instanceID string, headers, body json.RawMessage, lastAt time.Time) error
-	CreateDeliveryLog(ctx context.Context, log *domain.DeliveryLog) error
 }
