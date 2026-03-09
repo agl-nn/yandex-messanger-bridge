@@ -178,10 +178,7 @@ func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) 
 	out, err := engine.ParseAndRenderString(instance.Template.TemplateText, data)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to render template")
-
-		// Сохраняем ошибку в лог доставки
-		h.saveDeliveryLog(ctx, instanceID, body, 0, nil, err.Error())
-
+		h.saveDeliveryLog(ctx, instanceID, body, 0, nil, fmt.Errorf("template error: %w", err))
 		http.Error(w, "Template error", http.StatusInternalServerError)
 		return
 	}
@@ -190,7 +187,7 @@ func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) 
 	decryptedToken, err := h.encryptor.Decrypt(instance.BotToken)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to decrypt bot token")
-		h.saveDeliveryLog(ctx, instanceID, body, 0, nil, "Failed to decrypt token")
+		h.saveDeliveryLog(ctx, instanceID, body, 0, nil, fmt.Errorf("failed to decrypt token: %w", err))
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
@@ -223,12 +220,12 @@ func (h *Handler) HandleInstanceWebhook(w http.ResponseWriter, r *http.Request) 
 func (h *Handler) saveDeliveryLog(ctx context.Context, instanceID string, request []byte, status int, response []byte, err error) {
 	logEntry := &domain.DeliveryLog{
 		IntegrationID:  instanceID,
-		SourceEventID:  "", // можно добавить из запроса если есть
+		SourceEventID:  "",
 		RequestPayload: request,
 		ResponseStatus: status,
 		ResponseBody:   response,
 		DeliveredAt:    time.Now(),
-		DurationMS:     0, // можно добавить позже
+		DurationMS:     0,
 	}
 
 	if err != nil {
