@@ -133,6 +133,13 @@ func main() {
 		webGroup.GET("/integrations/:id/logs", webHandler.IntegrationLogs)
 		webGroup.POST("/integrations/:id/test", webHandler.TestIntegration)
 		webGroup.POST("/logout", webHandler.Logout)
+		// Админка для шаблонов (только для админов)
+		webGroup.GET("/admin/templates", webHandler.TemplatesAdminPage)
+		webGroup.GET("/admin/templates/new", webHandler.NewTemplateForm)
+		webGroup.POST("/admin/templates", webHandler.CreateTemplate)
+		webGroup.GET("/admin/templates/:id/edit", webHandler.EditTemplateForm)
+		webGroup.PUT("/admin/templates/:id", webHandler.UpdateTemplate)
+		webGroup.DELETE("/admin/templates/:id", webHandler.DeleteTemplate)
 	}
 
 	// Статические файлы

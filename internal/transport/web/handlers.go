@@ -303,3 +303,148 @@ func getBaseURL(c echo.Context) string {
 func (h *Handler) parseSourceConfig(c echo.Context, sourceType string) (map[string]interface{}, error) {
 	return make(map[string]interface{}), nil
 }
+
+// ================ Обработчики для шаблонов (админка) ================
+
+// TemplatesAdminPage отображает страницу управления шаблонами
+func (h *Handler) TemplatesAdminPage(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+
+	// Проверяем, что пользователь админ
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil || user.Role != "admin" {
+		return c.String(http.StatusForbidden, "Доступ запрещен")
+	}
+
+	// Получаем все шаблоны (для админа показываем все)
+	templates, err := h.repo.ListTemplates(c.Request().Context(), userID, true)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to load templates")
+		return c.String(http.StatusInternalServerError, "Failed to load templates")
+	}
+
+	return pages.TemplatesAdminPage(templates, user).Render(c.Request().Context(), c.Response().Writer)
+}
+
+// NewTemplateForm отображает форму создания нового шаблона
+func (h *Handler) NewTemplateForm(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+
+	// Проверяем права админа
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil || user.Role != "admin" {
+		return c.String(http.StatusForbidden, "Доступ запрещен")
+	}
+
+	return components.TemplateForm(nil).Render(c.Request().Context(), c.Response().Writer)
+}
+
+// CreateTemplate создает новый шаблон
+func (h *Handler) CreateTemplate(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+
+	// Проверяем права админа
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil || user.Role != "admin" {
+		return c.String(http.StatusForbidden, "Доступ запрещен")
+	}
+
+	name := c.FormValue("name")
+	icon := c.FormValue("icon")
+	description := c.FormValue("description")
+	templateText := c.FormValue("template_text")
+	isPublic := c.FormValue("is_public") == "on"
+
+	if name == "" || templateText == "" {
+		return c.String(http.StatusBadRequest, "Name and template text are required")
+	}
+
+	template := &domain.Template{
+		Name:         name,
+		Icon:         icon,
+		Description:  description,
+		TemplateText: templateText,
+		IsPublic:     isPublic,
+		CreatedBy:    userID,
+	}
+
+	if err := h.repo.CreateTemplate(c.Request().Context(), template); err != nil {
+		log.Error().Err(err).Msg("Failed to create template")
+		return c.String(http.StatusInternalServerError, "Failed to create template")
+	}
+
+	log.Info().Str("id", template.ID).Str("name", name).Msg("Template created")
+	return c.Redirect(http.StatusSeeOther, "/admin/templates")
+}
+
+// EditTemplateForm отображает форму редактирования шаблона
+func (h *Handler) EditTemplateForm(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+	id := c.Param("id")
+
+	// Проверяем права админа
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil || user.Role != "admin" {
+		return c.String(http.StatusForbidden, "Доступ запрещен")
+	}
+
+	template, err := h.repo.GetTemplateByID(c.Request().Context(), id)
+	if err != nil {
+		log.Error().Err(err).Str("id", id).Msg("Template not found")
+		return c.String(http.StatusNotFound, "Template not found")
+	}
+
+	return components.TemplateForm(template).Render(c.Request().Context(), c.Response().Writer)
+}
+
+// UpdateTemplate обновляет шаблон
+func (h *Handler) UpdateTemplate(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+	id := c.Param("id")
+
+	// Проверяем права админа
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil || user.Role != "admin" {
+		return c.String(http.StatusForbidden, "Доступ запрещен")
+	}
+
+	// Проверяем существование шаблона
+	existing, err := h.repo.GetTemplateByID(c.Request().Context(), id)
+	if err != nil {
+		return c.String(http.StatusNotFound, "Template not found")
+	}
+
+	existing.Name = c.FormValue("name")
+	existing.Icon = c.FormValue("icon")
+	existing.Description = c.FormValue("description")
+	existing.TemplateText = c.FormValue("template_text")
+	existing.IsPublic = c.FormValue("is_public") == "on"
+
+	if err := h.repo.UpdateTemplate(c.Request().Context(), existing); err != nil {
+		log.Error().Err(err).Msg("Failed to update template")
+		return c.String(http.StatusInternalServerError, "Failed to update template")
+	}
+
+	log.Info().Str("id", id).Msg("Template updated")
+	return c.Redirect(http.StatusSeeOther, "/admin/templates")
+}
+
+// DeleteTemplate удаляет шаблон
+func (h *Handler) DeleteTemplate(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+	id := c.Param("id")
+
+	// Проверяем права админа
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil || user.Role != "admin" {
+		return c.String(http.StatusForbidden, "Доступ запрещен")
+	}
+
+	if err := h.repo.DeleteTemplate(c.Request().Context(), id); err != nil {
+		log.Error().Err(err).Msg("Failed to delete template")
+		return c.String(http.StatusInternalServerError, "Failed to delete template")
+	}
+
+	log.Info().Str("id", id).Msg("Template deleted")
+	return h.TemplatesAdminPage(c)
+}
