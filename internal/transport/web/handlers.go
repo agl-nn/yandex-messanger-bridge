@@ -347,47 +347,6 @@ func (h *Handler) NewTemplateForm(c echo.Context) error {
 	return components.TemplateForm(nil).Render(c.Request().Context(), c.Response().Writer)
 }
 
-// CreateTemplate создает новый шаблон
-func (h *Handler) CreateTemplate(c echo.Context) error {
-	userID := getUserIDFromContext(c)
-
-	// Проверяем права админа
-	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
-	if err != nil || user.Role != "admin" {
-		log.Error().Err(err).Str("role", user.Role).Msg("Access denied")
-		return c.String(http.StatusForbidden, "Доступ запрещен")
-	}
-
-	name := c.FormValue("name")
-	icon := c.FormValue("icon")
-	description := c.FormValue("description")
-	templateText := c.FormValue("template_text")
-	isPublic := c.FormValue("is_public") == "on"
-
-	if name == "" || templateText == "" {
-		return c.String(http.StatusBadRequest, "Name and template text are required")
-	}
-
-	template := &domain.Template{
-		Name:         name,
-		Icon:         icon,
-		Description:  description,
-		TemplateText: templateText,
-		IsPublic:     isPublic,
-		CreatedBy:    sql.NullString{String: userID, Valid: userID != ""},
-	}
-
-	if err := h.repo.CreateTemplate(c.Request().Context(), template); err != nil {
-		log.Error().Err(err).Msg("Failed to create template")
-		return c.String(http.StatusInternalServerError, "Failed to create template")
-	}
-
-	log.Info().Str("id", template.ID).Str("name", name).Msg("Template created")
-
-	// ВАЖНО: редирект на страницу со списком шаблонов
-	return c.Redirect(http.StatusSeeOther, "/admin/templates")
-}
-
 // EditTemplateForm отображает форму редактирования шаблона
 func (h *Handler) EditTemplateForm(c echo.Context) error {
 	userID := getUserIDFromContext(c)
