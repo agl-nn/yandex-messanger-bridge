@@ -652,3 +652,73 @@ func (h *Handler) TestInstance(c echo.Context) error {
 	log.Info().Str("instance_id", id).Msg("Test message sent successfully")
 	return c.HTML(http.StatusOK, `<div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">✓ Тестовое сообщение отправлено</div>`)
 }
+
+// DeleteInstance удаляет экземпляр интеграции
+func (h *Handler) DeleteInstance(c echo.Context) error {
+	id := c.Param("id")
+	userID := getUserIDFromContext(c)
+
+	if err := h.repo.DeleteInstance(c.Request().Context(), id, userID); err != nil {
+		log.Error().Err(err).Str("id", id).Msg("Failed to delete instance")
+		return c.String(http.StatusInternalServerError, "Failed to delete instance")
+	}
+
+	log.Info().Str("id", id).Msg("Instance deleted successfully")
+
+	// Возвращаем обновленный список
+	instances, err := h.repo.ListInstances(c.Request().Context(), userID)
+	if err != nil {
+		return c.String(http.StatusInternalServerError, "Failed to load instances")
+	}
+
+	user, _ := h.repo.FindUserByID(c.Request().Context(), userID)
+	return pages.InstancesListPage(instances, user).Render(c.Request().Context(), c.Response().Writer)
+}
+
+// EditInstanceForm отображает форму редактирования экземпляра
+func (h *Handler) EditInstanceForm(c echo.Context) error {
+	id := c.Param("id")
+	userID := getUserIDFromContext(c)
+
+	instance, err := h.repo.GetInstanceWithTemplate(c.Request().Context(), id, userID)
+	if err != nil {
+		return c.String(http.StatusNotFound, "Instance not found")
+	}
+
+	user, _ := h.repo.FindUserByID(c.Request().Context(), userID)
+	return pages.InstanceEditPage(instance, user).Render(c.Request().Context(), c.Response().Writer)
+}
+
+// UpdateInstance обновляет экземпляр интеграции
+func (h *Handler) UpdateInstance(c echo.Context) error {
+	id := c.Param("id")
+	userID := getUserIDFromContext(c)
+
+	// Загружаем существующий экземпляр
+	instance, err := h.repo.GetInstanceByID(c.Request().Context(), id, userID)
+	if err != nil {
+		return c.String(http.StatusNotFound, "Instance not found")
+	}
+
+	// Обновляем поля
+	instance.Name = c.FormValue("name")
+	instance.ChatID = c.FormValue("chat_id")
+	instance.IsActive = c.FormValue("is_active") == "on"
+
+	if token := c.FormValue("bot_token"); token != "" && token != "***" {
+		encryptedToken, err := h.encryptor.Encrypt(token)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to encrypt bot token")
+			return c.String(http.StatusInternalServerError, "Failed to encrypt token")
+		}
+		instance.BotToken = encryptedToken
+	}
+
+	if err := h.repo.UpdateInstance(c.Request().Context(), instance); err != nil {
+		log.Error().Err(err).Msg("Failed to update instance")
+		return c.String(http.StatusInternalServerError, "Failed to update instance")
+	}
+
+	log.Info().Str("id", id).Msg("Instance updated successfully")
+	return c.Redirect(http.StatusSeeOther, "/instances")
+}

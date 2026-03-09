@@ -145,6 +145,9 @@ func main() {
 		webGroup.POST("/instances", webHandler.CreateInstance)
 		webGroup.GET("/instances", webHandler.InstancesListPage)
 		webGroup.POST("/instances/:id/test", webHandler.TestInstance)
+		webGroup.DELETE("/instances/:id", webHandler.DeleteInstance)
+		webGroup.GET("/instances/:id/edit", webHandler.EditInstanceForm)
+		webGroup.PUT("/instances/:id", webHandler.UpdateInstance)
 	}
 
 	// Статические файлы
