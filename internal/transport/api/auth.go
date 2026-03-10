@@ -163,7 +163,6 @@ func (a *AuthAPI) ChangePassword(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
 	}
 
-	// Пробуем получить user_id из обычного токена или временного
 	userID := c.Get("user_id")
 	if userID == nil {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
@@ -179,24 +178,21 @@ func (a *AuthAPI) ChangePassword(c echo.Context) error {
 	// Проверяем текущий пароль
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.CurrentPassword))
 	if err != nil {
-		log.Error().Err(err).Msg("Current password mismatch")
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid current password"})
 	}
 
 	// Хешируем новый пароль
 	newHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to hash new password")
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to change password"})
 	}
 
 	// Сохраняем новый пароль и сбрасываем флаг must_change
 	if err := a.repo.ChangePassword(c.Request().Context(), uid, string(newHash)); err != nil {
-		log.Error().Err(err).Msg("Failed to change password")
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to change password"})
 	}
 
-	// Удаляем временную cookie если была
+	// Удаляем временную cookie
 	c.SetCookie(&http.Cookie{
 		Name:     "temp_token",
 		Value:    "",
@@ -205,8 +201,32 @@ func (a *AuthAPI) ChangePassword(c echo.Context) error {
 		HttpOnly: true,
 	})
 
-	log.Info().Str("user_id", uid).Msg("Password changed successfully")
-	return c.JSON(http.StatusOK, map[string]string{"message": "password changed successfully"})
+	// Создаем новый постоянный токен
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": user.ID,
+		"role":    user.Role,
+		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+	})
+
+	tokenString, err := token.SignedString(a.jwtSecret)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to generate token"})
+	}
+
+	// Устанавливаем новую постоянную cookie
+	c.SetCookie(&http.Cookie{
+		Name:     "token",
+		Value:    tokenString,
+		Path:     "/",
+		Expires:  time.Now().Add(24 * time.Hour),
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message":  "password changed successfully",
+		"redirect": "/",
+	})
 }
 
 // Logout обрабатывает выход

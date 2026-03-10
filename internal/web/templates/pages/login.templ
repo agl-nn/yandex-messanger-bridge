@@ -60,6 +60,7 @@ templ LoginPage() {
                         headers: {
                             'Content-Type': 'application/json',
                         },
+                        credentials: 'include',  // Важно для отправки cookie
                         body: JSON.stringify({ email, password })
                     });
 
@@ -67,9 +68,11 @@ templ LoginPage() {
 
                     if (response.ok) {
                         if (data.must_change_password) {
+                            console.log('Must change password, redirecting...');
                             // Перенаправляем на страницу смены пароля
                             window.location.href = '/change-password';
                         } else if (data.token) {
+                            console.log('Login successful, redirecting to dashboard');
                             window.location.href = '/';
                         }
                     } else {
