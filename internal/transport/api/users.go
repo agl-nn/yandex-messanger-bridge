@@ -166,7 +166,7 @@ func (u *UsersAPI) ResetPassword(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "password must be at least 6 characters"})
 	}
 
-	// Находим пользователя
+	// Находим пользователя для проверки email
 	user, err := u.repo.FindUserByID(c.Request().Context(), userID)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "user not found"})
@@ -184,56 +184,15 @@ func (u *UsersAPI) ResetPassword(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to reset password"})
 	}
 
-	// Обновляем пароль и устанавливаем флаг смены
-	if err := u.repo.ChangePassword(c.Request().Context(), userID, string(hashedPassword)); err != nil {
-		log.Error().Err(err).Msg("Failed to change password")
+	// Используем новый метод AdminResetPassword
+	if err := u.repo.AdminResetPassword(c.Request().Context(), userID, string(hashedPassword)); err != nil {
+		log.Error().Err(err).Msg("Failed to reset password")
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to reset password"})
 	}
 
-	// Устанавливаем флаг must_change_password
-	user.MustChangePassword = true
-	if err := u.repo.UpdateUser(c.Request().Context(), user); err != nil {
-		log.Error().Err(err).Msg("Failed to update user must_change flag")
-	}
-
-	log.Info().Str("email", user.Email).Msg("Password reset by admin")
+	log.Info().Str("email", user.Email).Msg("Password reset by admin, must change on next login")
 
 	return c.JSON(http.StatusOK, map[string]string{
-		"message": "Password reset successfully",
+		"message": "Password reset successfully. User must change password on next login.",
 	})
-}
-
-// DeleteUser удаляет пользователя (только для админов)
-func (u *UsersAPI) DeleteUser(c echo.Context) error {
-	// Проверяем права админа
-	userRole := c.Get("user_role").(string)
-	if userRole != "admin" {
-		return c.JSON(http.StatusForbidden, map[string]string{"error": "access denied"})
-	}
-
-	userID := c.Param("id")
-	currentUserID := c.Get("user_id").(string)
-
-	// Нельзя удалить самого себя
-	if userID == currentUserID {
-		return c.JSON(http.StatusForbidden, map[string]string{"error": "cannot delete yourself"})
-	}
-
-	// Находим пользователя для проверки email
-	user, err := u.repo.FindUserByID(c.Request().Context(), userID)
-	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": "user not found"})
-	}
-
-	// Нельзя удалить admin@localhost
-	if user.Email == "admin@localhost" {
-		return c.JSON(http.StatusForbidden, map[string]string{"error": "cannot delete default admin"})
-	}
-
-	if err := u.repo.DeleteUser(c.Request().Context(), userID); err != nil {
-		log.Error().Err(err).Msg("Failed to delete user")
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to delete user"})
-	}
-
-	return c.JSON(http.StatusOK, map[string]string{"message": "user deleted successfully"})
 }

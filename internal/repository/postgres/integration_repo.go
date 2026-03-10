@@ -984,14 +984,21 @@ func (r *IntegrationRepository) ListUsers(ctx context.Context) ([]*domain.User, 
 
 // UpdateUser обновляет данные пользователя
 func (r *IntegrationRepository) UpdateUser(ctx context.Context, user *domain.User) error {
-	query := `UPDATE users SET email = $1, role = $2, updated_at = NOW() WHERE id = $3`
-	_, err := r.db.ExecContext(ctx, query, user.Email, user.Role, user.ID)
+	query := `UPDATE users SET email = $1, role = $2, must_change_password = $3, updated_at = NOW() WHERE id = $4`
+	_, err := r.db.ExecContext(ctx, query, user.Email, user.Role, user.MustChangePassword, user.ID)
 	return err
 }
 
-// ChangePassword изменяет пароль пользователя
+// ChangePassword - пользователь сам меняет пароль (после входа)
 func (r *IntegrationRepository) ChangePassword(ctx context.Context, userID string, newPasswordHash string) error {
 	query := `UPDATE users SET password_hash = $1, must_change_password = false, updated_at = NOW() WHERE id = $2`
+	_, err := r.db.ExecContext(ctx, query, newPasswordHash, userID)
+	return err
+}
+
+// AdminResetPassword - админ сбрасывает пароль пользователю
+func (r *IntegrationRepository) AdminResetPassword(ctx context.Context, userID string, newPasswordHash string) error {
+	query := `UPDATE users SET password_hash = $1, must_change_password = true, updated_at = NOW() WHERE id = $2`
 	_, err := r.db.ExecContext(ctx, query, newPasswordHash, userID)
 	return err
 }

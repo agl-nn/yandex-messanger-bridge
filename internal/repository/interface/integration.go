@@ -63,4 +63,5 @@ type IntegrationRepository interface {
 	UpdateUser(ctx context.Context, user *domain.User) error
 	ChangePassword(ctx context.Context, userID string, newPasswordHash string) error
 	DeleteUser(ctx context.Context, id string) error
+	AdminResetPassword(ctx context.Context, userID string, newPasswordHash string) error
 }
