@@ -433,16 +433,17 @@ func (h *Handler) UpdateInstance(c echo.Context) error {
 	userID := getUserIDFromContext(c)
 
 	// Загружаем существующий экземпляр
-	instance, err := h.repo.GetInstanceByID(c.Request().Context(), id, userID)
+	instance, err := h.repo.GetInstanceWithTemplate(c.Request().Context(), id, userID)
 	if err != nil {
 		return c.String(http.StatusNotFound, "Instance not found")
 	}
 
-	// Обновляем поля
+	// Обновляем поля экземпляра
 	instance.Name = c.FormValue("name")
 	instance.ChatID = c.FormValue("chat_id")
 	instance.IsActive = c.FormValue("is_active") == "on"
 
+	// Обновляем токен если изменился
 	if token := c.FormValue("bot_token"); token != "" && token != "***" {
 		encryptedToken, err := h.encryptor.Encrypt(token)
 		if err != nil {
@@ -452,6 +453,16 @@ func (h *Handler) UpdateInstance(c echo.Context) error {
 		instance.BotToken = encryptedToken
 	}
 
+	// Обновляем шаблон если он изменился
+	if templateText := c.FormValue("template_text"); templateText != "" && instance.Template != nil {
+		instance.Template.TemplateText = templateText
+		if err := h.repo.UpdateTemplate(c.Request().Context(), instance.Template); err != nil {
+			log.Error().Err(err).Msg("Failed to update template")
+			return c.String(http.StatusInternalServerError, "Failed to update template")
+		}
+	}
+
+	// Сохраняем изменения в экземпляре
 	if err := h.repo.UpdateInstance(c.Request().Context(), instance); err != nil {
 		log.Error().Err(err).Msg("Failed to update instance")
 		return c.String(http.StatusInternalServerError, "Failed to update instance")
