@@ -536,21 +536,25 @@ func (h *Handler) CustomInstanceCreatePage(c echo.Context) error {
 // CreateCustomInstance создает новый экземпляр с кастомным шаблоном
 func (h *Handler) CreateCustomInstance(c echo.Context) error {
 	userID := getUserIDFromContext(c)
+	log.Info().Str("user_id", userID).Msg("CreateCustomInstance called")
 
 	name := c.FormValue("name")
 	chatID := c.FormValue("chat_id")
 	botToken := c.FormValue("bot_token")
 	templateText := c.FormValue("template_text")
 
+	log.Info().
+		Str("name", name).
+		Str("chat_id", chatID).
+		Int("template_len", len(templateText)).
+		Msg("Form values received")
+
 	if name == "" || chatID == "" || botToken == "" || templateText == "" {
+		log.Error().Msg("Missing required fields")
 		return c.String(http.StatusBadRequest, "All fields are required")
 	}
 
-	// Создаём временный шаблон для пользователя
-	// В реальности можно создать постоянный шаблон или хранить текст в экземпляре
-	// Но сейчас у нас template_text есть только в таблице templates
-
-	// Вариант 1: Создаём приватный шаблон для пользователя
+	// Создаём приватный шаблон для пользователя
 	template := &domain.Template{
 		Name:         name + " (кастомный)",
 		Icon:         "📝",
@@ -564,6 +568,7 @@ func (h *Handler) CreateCustomInstance(c echo.Context) error {
 		log.Error().Err(err).Msg("Failed to create custom template")
 		return c.String(http.StatusInternalServerError, "Failed to create template")
 	}
+	log.Info().Str("template_id", template.ID).Msg("Template created")
 
 	// Шифруем токен
 	encryptedToken, err := h.encryptor.Encrypt(botToken)
@@ -571,6 +576,29 @@ func (h *Handler) CreateCustomInstance(c echo.Context) error {
 		log.Error().Err(err).Msg("Failed to encrypt bot token")
 		return c.String(http.StatusInternalServerError, "Failed to encrypt token")
 	}
+
+	// Создаём экземпляр
+	instance := &domain.IntegrationInstance{
+		TemplateID: template.ID,
+		UserID:     userID,
+		Name:       name,
+		ChatID:     chatID,
+		BotToken:   encryptedToken,
+		IsActive:   true,
+	}
+
+	if err := h.repo.CreateInstance(c.Request().Context(), instance); err != nil {
+		log.Error().Err(err).Msg("Failed to create instance")
+		return c.String(http.StatusInternalServerError, "Failed to create instance")
+	}
+
+	log.Info().
+		Str("instance_id", instance.ID).
+		Str("name", name).
+		Msg("Custom instance created successfully")
+
+	return c.Redirect(http.StatusSeeOther, "/instances")
+}
 
 	// Создаём экземпляр
 	instance := &domain.IntegrationInstance{
