@@ -265,18 +265,31 @@ templ UsersAdminPage(users []*domain.User, currentUser *domain.User) {
 
             function resetUserPassword(button) {
                 const userId = button.getAttribute('data-id');
-                if (!confirm('Сбросить пароль пользователя? Новый пароль будет установлен: password123')) {
+                const newPassword = prompt('Введите новый пароль для пользователя:', '');
+
+                if (!newPassword || newPassword.length < 6) {
+                    alert('Пароль должен быть не менее 6 символов');
+                    return;
+                }
+
+                if (!confirm('Установить новый пароль для пользователя?')) {
                     return;
                 }
 
                 fetch('/api/v1/admin/users/' + userId + '/reset-password', {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ password: newPassword })
                 })
                 .then(response => {
                     if (response.ok) {
-                        alert('Пароль сброшен. Новый пароль: password123\n\nПользователь должен сменить пароль при следующем входе.');
+                        alert('Пароль успешно изменен');
                     } else {
-                        alert('Ошибка при сбросе пароля');
+                        return response.json().then(data => {
+                            alert('Ошибка: ' + data.error);
+                        });
                     }
                 })
                 .catch(error => {

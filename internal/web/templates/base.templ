@@ -103,10 +103,8 @@ templ Navbar(user *domain.User) {
                             </div>
                         </div>
 
-                        <form hx-post="/api/v1/logout"
-                              hx-target="body"
-                              hx-push-url="true"
-                              hx-on::after-request="if(event.detail.successful) window.location.href='/login'"
+                        <form action="/api/v1/logout" method="POST"
+                              onsubmit="event.preventDefault(); fetch('/api/v1/logout', {method: 'POST'}).then(() => window.location.href='/login')"
                               class="inline">
                             <button type="submit"
                                     class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm transition">

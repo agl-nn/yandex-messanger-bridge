@@ -28,8 +28,8 @@ type UpdateUserRequest struct {
 	Role  string `json:"role" validate:"required,oneof=user admin"`
 }
 
-type ResetPasswordResponse struct {
-	Message string `json:"message"`
+type ResetPasswordRequest struct {
+	Password string `json:"password" validate:"required,min=6"`
 }
 
 func NewUsersAPI(repo _interface.IntegrationRepository, jwtSecret string) *UsersAPI {
@@ -157,6 +157,15 @@ func (u *UsersAPI) ResetPassword(c echo.Context) error {
 
 	userID := c.Param("id")
 
+	var req ResetPasswordRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
+	}
+
+	if len(req.Password) < 6 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "password must be at least 6 characters"})
+	}
+
 	// Находим пользователя
 	user, err := u.repo.FindUserByID(c.Request().Context(), userID)
 	if err != nil {
@@ -168,9 +177,8 @@ func (u *UsersAPI) ResetPassword(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, map[string]string{"error": "cannot reset password for default admin"})
 	}
 
-	// Устанавливаем временный пароль "password123"
-	tempPassword := "password123"
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(tempPassword), bcrypt.DefaultCost)
+	// Хешируем новый пароль
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to hash password")
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to reset password"})
@@ -182,10 +190,16 @@ func (u *UsersAPI) ResetPassword(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to reset password"})
 	}
 
-	log.Info().Str("email", user.Email).Msg("Password reset")
+	// Устанавливаем флаг must_change_password
+	user.MustChangePassword = true
+	if err := u.repo.UpdateUser(c.Request().Context(), user); err != nil {
+		log.Error().Err(err).Msg("Failed to update user must_change flag")
+	}
 
-	return c.JSON(http.StatusOK, ResetPasswordResponse{
-		Message: "Password reset successfully. New password: password123",
+	log.Info().Str("email", user.Email).Msg("Password reset by admin")
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Password reset successfully",
 	})
 }
 
