@@ -203,6 +203,7 @@ templ UsersAdminPage(users []*domain.User, currentUser *domain.User) {
                     headers: {
                         'Content-Type': 'application/json',
                     },
+                    credentials: 'include',  // Добавляем отправку cookie
                     body: JSON.stringify(data)
                 })
                 .then(response => {
@@ -247,6 +248,7 @@ templ UsersAdminPage(users []*domain.User, currentUser *domain.User) {
                     headers: {
                         'Content-Type': 'application/json',
                     },
+                    credentials: 'include',  // Добавляем отправку cookie
                     body: JSON.stringify(data)
                 })
                 .then(response => {
@@ -281,6 +283,7 @@ templ UsersAdminPage(users []*domain.User, currentUser *domain.User) {
                     headers: {
                         'Content-Type': 'application/json',
                     },
+                    credentials: 'include',  // Добавляем отправку cookie
                     body: JSON.stringify({ password: newPassword })
                 })
                 .then(response => {
@@ -304,7 +307,8 @@ templ UsersAdminPage(users []*domain.User, currentUser *domain.User) {
                 }
 
                 fetch('/api/v1/admin/users/' + userId, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    credentials: 'include'  // Добавляем отправку cookie
                 })
                 .then(response => {
                     if (response.ok) {
