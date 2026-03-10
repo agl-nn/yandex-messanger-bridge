@@ -36,9 +36,15 @@ templ UsersAdminPage(users []*domain.User, currentUser *domain.User) {
                                         <div class="text-sm font-medium text-gray-900">{ u.Email }</div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class={ roleBadgeClass(u.Role) }>
-                                            { if u.Role == "admin" { "Администратор" } else { "Пользователь" } }
-                                        </span>
+                                        if u.Role == "admin" {
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                                                Администратор
+                                            </span>
+                                        } else {
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                Пользователь
+                                            </span>
+                                        }
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         if u.MustChangePassword {
@@ -161,7 +167,7 @@ templ UsersAdminPage(users []*domain.User, currentUser *domain.User) {
             }
 
             async function resetUserPassword(userId) {
-                if (!confirm('Сбросить пароль пользователя? Новый пароль будет отправлен на email (временно: password123)')) {
+                if (!confirm('Сбросить пароль пользователя? Новый пароль будет показан на экране.')) {
                     return;
                 }
 
@@ -171,7 +177,8 @@ templ UsersAdminPage(users []*domain.User, currentUser *domain.User) {
                     });
 
                     if (response.ok) {
-                        alert('Пароль сброшен. Пользователь должен сменить пароль при следующем входе.');
+                        const data = await response.json();
+                        alert('Пароль сброшен. Временный пароль: ' + data.temp_password + '\n\nПользователь должен сменить пароль при следующем входе.');
                     } else {
                         alert('Ошибка при сбросе пароля');
                     }
@@ -201,15 +208,7 @@ templ UsersAdminPage(users []*domain.User, currentUser *domain.User) {
             }
 
             function editUser(id, email, role) {
-                // Можно реализовать редактирование позже
                 alert('Редактирование пользователя будет доступно позже');
-            }
-
-            function roleBadgeClass(role) {
-                if (role === 'admin') {
-                    return 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800';
-                }
-                return 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800';
             }
         </script>
     }
