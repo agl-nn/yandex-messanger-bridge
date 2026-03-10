@@ -112,6 +112,8 @@ func main() {
 
 		// Пользовательские маршруты для шаблонов и экземпляров
 		webGroup.GET("/templates", webHandler.TemplatesUserPage)
+		webGroup.GET("/templates/custom/new", webHandler.CustomInstanceCreatePage)
+		webGroup.POST("/instances/custom", webHandler.CreateCustomInstance)
 		webGroup.GET("/templates/:id/use", webHandler.InstanceCreatePage)
 		webGroup.POST("/instances", webHandler.CreateInstance)
 		webGroup.GET("/instances", webHandler.InstancesListPage)
