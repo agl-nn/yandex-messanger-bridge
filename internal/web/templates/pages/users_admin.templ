@@ -61,19 +61,24 @@ templ UsersAdminPage(users []*domain.User, currentUser *domain.User) {
                                         { u.CreatedAt.Format("02.01.2006") }
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button onclick={ templ.JS("editUser('" + u.ID + "', '" + u.Email + "', '" + u.Role + "')") }
+                                        <button data-id={ u.ID }
+                                                data-email={ u.Email }
+                                                data-role={ u.Role }
+                                                onclick="editUser(this)"
                                                 class="text-indigo-600 hover:text-indigo-900 mr-3">
                                             ✏️
                                         </button>
                                         if u.Email != "admin@localhost" {
-                                            <button onclick={ templ.JS("resetUserPassword('" + u.ID + "')") }
+                                            <button data-id={ u.ID }
+                                                    onclick="resetUserPassword(this)"
                                                     class="text-yellow-600 hover:text-yellow-900 mr-3"
                                                     title="Сбросить пароль">
                                                 🔑
                                             </button>
                                         }
                                         if u.Email != "admin@localhost" && u.ID != currentUser.ID {
-                                            <button onclick={ templ.JS("deleteUser('" + u.ID + "')") }
+                                            <button data-id={ u.ID }
+                                                    onclick="deleteUser(this)"
                                                     class="text-red-600 hover:text-red-900">
                                                 🗑️
                                             </button>
@@ -166,7 +171,8 @@ templ UsersAdminPage(users []*domain.User, currentUser *domain.User) {
                 }
             }
 
-            async function resetUserPassword(userId) {
+            async function resetUserPassword(button) {
+                const userId = button.getAttribute('data-id');
                 if (!confirm('Сбросить пароль пользователя? Новый пароль будет показан на экране.')) {
                     return;
                 }
@@ -187,7 +193,8 @@ templ UsersAdminPage(users []*domain.User, currentUser *domain.User) {
                 }
             }
 
-            async function deleteUser(userId) {
+            async function deleteUser(button) {
+                const userId = button.getAttribute('data-id');
                 if (!confirm('Удалить пользователя? Это действие нельзя отменить.')) {
                     return;
                 }
@@ -207,7 +214,10 @@ templ UsersAdminPage(users []*domain.User, currentUser *domain.User) {
                 }
             }
 
-            function editUser(id, email, role) {
+            function editUser(button) {
+                const id = button.getAttribute('data-id');
+                const email = button.getAttribute('data-email');
+                const role = button.getAttribute('data-role');
                 alert('Редактирование пользователя будет доступно позже');
             }
         </script>
