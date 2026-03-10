@@ -151,6 +151,7 @@ func main() {
 		webGroup.GET("/templates", webHandler.TemplatesUserPage)
 		webGroup.GET("/templates/custom/new", webHandler.CustomInstanceCreatePage)
 		webGroup.POST("/templates/custom", webHandler.CreateCustomInstance)
+		webGroup.POST("/instances/custom", webHandler.CreateCustomInstance)
 		webGroup.GET("/templates/:id/use", webHandler.InstanceCreatePage)
 		webGroup.POST("/instances", webHandler.CreateInstance)
 		webGroup.GET("/instances", webHandler.InstancesListPage)
