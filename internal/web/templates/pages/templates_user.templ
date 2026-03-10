@@ -8,7 +8,14 @@ import (
 templ TemplatesUserPage(templatesList []*domain.Template, user *domain.User) {
     @templates.Base("Доступные шаблоны", user) {
         <div class="space-y-6">
-            <h1 class="text-3xl font-bold text-gray-900">Доступные шаблоны</h1>
+            <div class="flex justify-between items-center">
+                <h1 class="text-3xl font-bold text-gray-900">Доступные шаблоны</h1>
+
+                <a href="/templates/custom/new"
+                   class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition">
+                    + Создать кастомную интеграцию
+                </a>
+            </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 for _, t := range templatesList {

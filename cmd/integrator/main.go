@@ -63,14 +63,12 @@ func main() {
 	// Создаем Echo сервер
 	e := echo.New()
 
-	// Middleware (ВАЖЕН ПОРЯДОК!)
+	// Middleware
 	e.Use(middleware.MethodOverrideWithConfig(middleware.MethodOverrideConfig{
 		Getter: func(c echo.Context) string {
-			// Сначала проверяем заголовок от HTMX
 			if method := c.Request().Header.Get("X-HTTP-Method-Override"); method != "" {
 				return method
 			}
-			// Затем проверяем поле формы (для _method)
 			return c.FormValue("_method")
 		},
 	}))
@@ -78,11 +76,8 @@ func main() {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 
-	// Публичные webhook эндпоинты (без аутентификации)
+	// Публичные webhook эндпоинты
 	webhookGroup := e.Group("/webhook")
-	webhookGroup.POST("/:id/jira", echo.WrapHandler(http.HandlerFunc(webhookHandler.HandleJira)))
-	webhookGroup.POST("/:id/gitlab", echo.WrapHandler(http.HandlerFunc(webhookHandler.HandleGitLab)))
-	webhookGroup.POST("/:id/alertmanager", echo.WrapHandler(http.HandlerFunc(webhookHandler.HandleAlertmanager)))
 	webhookGroup.POST("/instance/:id", echo.WrapHandler(http.HandlerFunc(webhookHandler.HandleInstanceWebhook)))
 
 	// Публичные API эндпоинты
@@ -98,48 +93,27 @@ func main() {
 	apiGroup := e.Group("/api/v1")
 	apiGroup.Use(authMw.RequireAuth)
 	{
-		integrationAPI := api.NewIntegrationAPI(integrationRepo, encryptor, cfg.BaseURL)
-		apiGroup.GET("/integrations", integrationAPI.List)
-		apiGroup.POST("/integrations", integrationAPI.Create)
-		apiGroup.GET("/integrations/:id", integrationAPI.Get)
-		apiGroup.PUT("/integrations/:id", integrationAPI.Update)
-		apiGroup.DELETE("/integrations/:id", integrationAPI.Delete)
-		apiGroup.POST("/integrations/:id/test", integrationAPI.Test)
-		apiGroup.POST("/integrations/jira", integrationAPI.CreateJira)
-		apiGroup.POST("/integrations/gitlab", integrationAPI.CreateGitLab)
-		apiGroup.POST("/integrations/custom", integrationAPI.CreateCustom)
-		apiGroup.POST("/integrations/custom", integrationAPI.CreateCustom)
 		apiGroup.GET("/me", authAPI.Me)
 	}
-	// ТЕСТОВЫЙ ОБРАБОТЧИК - ВРЕМЕННО
-	e.PUT("/integrations/:id", func(c echo.Context) error {
-		log.Info().
-			Str("id", c.Param("id")).
-			Str("handler", "DIRECT_ECHO").
-			Msg("🔥🔥🔥 DIRECT ECHO HANDLER CALLED 🔥🔥🔥")
-		return c.String(http.StatusOK, "Direct echo handler OK")
-	})
-	// Защищенные веб-эндпоинты (с токеном в cookie)
+
+	// Защищенные веб-эндпоинты
 	webGroup := e.Group("")
 	webGroup.Use(authMw.CookieAuth)
 	{
 		webGroup.GET("/", webHandler.Dashboard)
-		webGroup.GET("/integrations", webHandler.IntegrationsPage)
-		webGroup.GET("/integrations/new", webHandler.NewIntegrationForm)
-		webGroup.POST("/integrations", webHandler.CreateIntegration)
-		webGroup.GET("/integrations/:id/edit", webHandler.EditIntegrationForm)
-		webGroup.PUT("/integrations/:id", webHandler.UpdateIntegration)
-		webGroup.DELETE("/integrations/:id", webHandler.DeleteIntegration)
-		webGroup.POST("/integrations/:id/test", webHandler.TestIntegration)
 		webGroup.POST("/logout", webHandler.Logout)
-		// Админка для шаблонов (только для админов)
+
+		// Админка для шаблонов
 		webGroup.GET("/admin/templates", webHandler.TemplatesAdminPage)
 		webGroup.GET("/admin/templates/new", webHandler.TemplateEditPage)
 		webGroup.GET("/admin/templates/:id/edit", webHandler.TemplateEditPage)
 		webGroup.POST("/admin/templates", webHandler.CreateTemplate)
 		webGroup.DELETE("/admin/templates/:id", webHandler.DeleteTemplate)
+
 		// Пользовательские маршруты для шаблонов и экземпляров
 		webGroup.GET("/templates", webHandler.TemplatesUserPage)
+		webGroup.GET("/templates/custom/new", webHandler.CustomInstanceCreatePage)
+		webGroup.POST("/instances/custom", webHandler.CreateCustomInstance)
 		webGroup.GET("/templates/:id/use", webHandler.InstanceCreatePage)
 		webGroup.POST("/instances", webHandler.CreateInstance)
 		webGroup.GET("/instances", webHandler.InstancesListPage)
@@ -152,11 +126,6 @@ func main() {
 
 	// Статические файлы
 	e.Static("/static", "internal/web/static")
-
-	// Отладка: показать все зарегистрированные маршруты
-	for _, route := range e.Routes() {
-		log.Info().Str("method", route.Method).Str("path", route.Path).Msg("Registered route")
-	}
 
 	// Graceful shutdown
 	go func() {

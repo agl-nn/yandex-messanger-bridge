@@ -24,13 +24,24 @@ func SetupRoutes(
 	protected.Use(authMiddleware.CookieAuth)
 	{
 		protected.GET("/", handler.Dashboard)
-		protected.GET("/integrations", handler.IntegrationsPage)
-		protected.GET("/integrations/new", handler.NewIntegrationForm)
-		protected.POST("/integrations", handler.CreateIntegration)
-		protected.GET("/integrations/:id/edit", handler.EditIntegrationForm)
-		protected.PUT("/integrations/:id", handler.UpdateIntegration)
-		protected.DELETE("/integrations/:id", handler.DeleteIntegration)
-		protected.POST("/integrations/:id/test", handler.TestIntegration)
-		// Удален вызов handler.SourceConfigFields
+		protected.POST("/logout", handler.Logout)
+
+		// Админка для шаблонов
+		protected.GET("/admin/templates", handler.TemplatesAdminPage)
+		protected.GET("/admin/templates/new", handler.TemplateEditPage)
+		protected.GET("/admin/templates/:id/edit", handler.TemplateEditPage)
+		protected.POST("/admin/templates", handler.CreateTemplate)
+		protected.DELETE("/admin/templates/:id", handler.DeleteTemplate)
+
+		// Пользовательские маршруты для шаблонов и экземпляров
+		protected.GET("/templates", handler.TemplatesUserPage)
+		protected.GET("/templates/:id/use", handler.InstanceCreatePage)
+		protected.POST("/instances", handler.CreateInstance)
+		protected.GET("/instances", handler.InstancesListPage)
+		protected.POST("/instances/:id/test", handler.TestInstance)
+		protected.DELETE("/instances/:id", handler.DeleteInstance)
+		protected.GET("/instances/:id/edit", handler.EditInstanceForm)
+		protected.PUT("/instances/:id", handler.UpdateInstance)
+		protected.GET("/instances/:id/last-webhook", handler.GetLastWebhook)
 	}
 }

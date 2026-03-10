@@ -18,54 +18,68 @@ templ TemplatesAdminPage(templatesList []*domain.Template, user *domain.User) {
             </div>
 
             <div id="templates-container">
-                <div class="bg-white rounded-lg shadow overflow-hidden">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Иконка</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Название</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Описание</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Доступ</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            for _, t := range templatesList {
-                                <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap text-2xl">{ t.Icon }</td>
-                                    <td class="px-6 py-4 whitespace-nowrap font-medium">{ t.Name }</td>
-                                    <td class="px-6 py-4">{ t.Description }</td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        if t.IsPublic {
-                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                                Публичный
-                                            </span>
-                                        } else {
-                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                                Приватный
-                                            </span>
-                                        }
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <a href={ "/admin/templates/" + t.ID + "/edit" }
-                                           class="text-indigo-600 hover:text-indigo-900 mr-3">
-                                            ✏️
-                                        </a>
-                                        <button class="text-red-600 hover:text-red-900"
-                                                hx-delete={ "/admin/templates/" + t.ID }
-                                                hx-confirm="Удалить шаблон?"
-                                                hx-target="#templates-container">
-                                            🗑️
-                                        </button>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
+                @TemplatesAdminTable(templatesList)
             </div>
 
             <div id="modal-container"></div>
         </div>
     }
+}
+
+templ TemplatesAdminTable(templatesList []*domain.Template) {
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Иконка</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Название</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Описание</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Доступ</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200" id="templates-table-body">
+                if len(templatesList) == 0 {
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                            Нет шаблонов. Создайте первый!
+                        </td>
+                    </tr>
+                } else {
+                    for _, t := range templatesList {
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-2xl">{ t.Icon }</td>
+                            <td class="px-6 py-4 whitespace-nowrap font-medium">{ t.Name }</td>
+                            <td class="px-6 py-4">{ t.Description }</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                if t.IsPublic {
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        Публичный
+                                    </span>
+                                } else {
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                        Приватный
+                                    </span>
+                                }
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <a href={ "/admin/templates/" + t.ID + "/edit" }
+                                   class="text-indigo-600 hover:text-indigo-900 mr-3"
+                                   hx-boost="false">
+                                    ✏️
+                                </a>
+                                <button class="text-red-600 hover:text-red-900"
+                                        hx-delete={ "/admin/templates/" + t.ID }
+                                        hx-confirm="Удалить шаблон?"
+                                        hx-target="#templates-container"
+                                        hx-swap="outerHTML">
+                                    🗑️
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
 }
