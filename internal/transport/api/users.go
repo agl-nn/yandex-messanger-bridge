@@ -2,9 +2,7 @@ package api
 
 import (
 	"net/http"
-	"time"
 
-	//"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
@@ -20,13 +18,18 @@ type UsersAPI struct {
 
 type CreateUserRequest struct {
 	Email         string `json:"email" validate:"required,email"`
+	Password      string `json:"password" validate:"required,min=6"`
 	Role          string `json:"role" validate:"required,oneof=user admin"`
 	RequireChange bool   `json:"require_change"`
 }
 
+type UpdateUserRequest struct {
+	Email string `json:"email" validate:"required,email"`
+	Role  string `json:"role" validate:"required,oneof=user admin"`
+}
+
 type ResetPasswordResponse struct {
-	TempPassword string `json:"temp_password"`
-	Message      string `json:"message"`
+	Message string `json:"message"`
 }
 
 func NewUsersAPI(repo _interface.IntegrationRepository, jwtSecret string) *UsersAPI {
@@ -77,9 +80,8 @@ func (u *UsersAPI) CreateUser(c echo.Context) error {
 		return c.JSON(http.StatusConflict, map[string]string{"error": "user already exists"})
 	}
 
-	// Генерируем временный пароль
-	tempPassword := generateTempPassword()
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(tempPassword), bcrypt.DefaultCost)
+	// Хешируем пароль
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to hash password")
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create user"})
@@ -97,18 +99,52 @@ func (u *UsersAPI) CreateUser(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create user"})
 	}
 
-	// В реальном проекте здесь должна быть отправка email с временным паролем
-	log.Info().Str("email", req.Email).Str("temp_password", tempPassword).Msg("User created")
+	log.Info().Str("email", req.Email).Str("role", req.Role).Msg("User created")
 
 	return c.JSON(http.StatusCreated, map[string]interface{}{
-		"message":       "user created successfully",
-		"temp_password": tempPassword, // Временное решение, в продакшене убрать!
+		"message": "user created successfully",
 		"user": map[string]string{
 			"id":    user.ID,
 			"email": user.Email,
 			"role":  user.Role,
 		},
 	})
+}
+
+// UpdateUser обновляет данные пользователя (только для админов)
+func (u *UsersAPI) UpdateUser(c echo.Context) error {
+	// Проверяем права админа
+	userRole := c.Get("user_role").(string)
+	if userRole != "admin" {
+		return c.JSON(http.StatusForbidden, map[string]string{"error": "access denied"})
+	}
+
+	userID := c.Param("id")
+	var req UpdateUserRequest
+
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
+	}
+
+	user, err := u.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "user not found"})
+	}
+
+	// Нельзя изменить admin@localhost
+	if user.Email == "admin@localhost" && req.Email != "admin@localhost" {
+		return c.JSON(http.StatusForbidden, map[string]string{"error": "cannot modify default admin"})
+	}
+
+	user.Email = req.Email
+	user.Role = req.Role
+
+	if err := u.repo.UpdateUser(c.Request().Context(), user); err != nil {
+		log.Error().Err(err).Msg("Failed to update user")
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to update user"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "user updated successfully"})
 }
 
 // ResetPassword сбрасывает пароль пользователя (только для админов)
@@ -132,8 +168,8 @@ func (u *UsersAPI) ResetPassword(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, map[string]string{"error": "cannot reset password for default admin"})
 	}
 
-	// Генерируем временный пароль
-	tempPassword := generateTempPassword()
+	// Устанавливаем временный пароль "password123"
+	tempPassword := "password123"
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(tempPassword), bcrypt.DefaultCost)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to hash password")
@@ -146,17 +182,10 @@ func (u *UsersAPI) ResetPassword(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to reset password"})
 	}
 
-	// Дополнительно устанавливаем флаг must_change_password через UpdateUser
-	user.MustChangePassword = true
-	if err := u.repo.UpdateUser(c.Request().Context(), user); err != nil {
-		log.Error().Err(err).Msg("Failed to update user must_change flag")
-	}
+	log.Info().Str("email", user.Email).Msg("Password reset")
 
-	log.Info().Str("email", user.Email).Str("temp_password", tempPassword).Msg("Password reset")
-
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"message":       "password reset successfully",
-		"temp_password": tempPassword, // Временное решение
+	return c.JSON(http.StatusOK, ResetPasswordResponse{
+		Message: "Password reset successfully. New password: password123",
 	})
 }
 
@@ -193,54 +222,4 @@ func (u *UsersAPI) DeleteUser(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "user deleted successfully"})
-}
-
-// UpdateUser обновляет данные пользователя (только для админов)
-func (u *UsersAPI) UpdateUser(c echo.Context) error {
-	// Проверяем права админа
-	userRole := c.Get("user_role").(string)
-	if userRole != "admin" {
-		return c.JSON(http.StatusForbidden, map[string]string{"error": "access denied"})
-	}
-
-	userID := c.Param("id")
-	var req struct {
-		Email string `json:"email"`
-		Role  string `json:"role"`
-	}
-
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
-	}
-
-	user, err := u.repo.FindUserByID(c.Request().Context(), userID)
-	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": "user not found"})
-	}
-
-	// Нельзя изменить admin@localhost
-	if user.Email == "admin@localhost" && req.Email != "admin@localhost" {
-		return c.JSON(http.StatusForbidden, map[string]string{"error": "cannot modify default admin"})
-	}
-
-	user.Email = req.Email
-	user.Role = req.Role
-
-	if err := u.repo.UpdateUser(c.Request().Context(), user); err != nil {
-		log.Error().Err(err).Msg("Failed to update user")
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to update user"})
-	}
-
-	return c.JSON(http.StatusOK, map[string]string{"message": "user updated successfully"})
-}
-
-// generateTempPassword генерирует временный пароль
-func generateTempPassword() string {
-	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, 12)
-	for i := range b {
-		b[i] = chars[time.Now().UnixNano()%int64(len(chars))]
-		time.Sleep(1) // Чтобы разные символы
-	}
-	return string(b)
 }
