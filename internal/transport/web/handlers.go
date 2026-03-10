@@ -249,7 +249,16 @@ func (h *Handler) DeleteTemplate(c echo.Context) error {
 	}
 
 	log.Info().Str("id", id).Msg("Template deleted")
-	return h.TemplatesAdminPage(c)
+
+	// Получаем обновленный список шаблонов
+	templates, err := h.repo.ListTemplates(c.Request().Context(), userID, true)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to load templates after delete")
+		return c.String(http.StatusInternalServerError, "Failed to load templates")
+	}
+
+	// Возвращаем только таблицу, а не всю страницу
+	return pages.TemplatesAdminTable(templates).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // ================ Обработчики для шаблонов (пользователи) ================
