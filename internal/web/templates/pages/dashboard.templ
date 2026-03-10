@@ -6,45 +6,43 @@ import (
     "yandex-messenger-bridge/internal/web/templates"
 )
 
-templ Dashboard(stats map[string]interface{}, integrations []*domain.Integration, user *domain.User) {
+templ Dashboard(stats map[string]interface{}, instances []*domain.IntegrationInstance, user *domain.User) {
     @templates.Base("Дашборд", user) {
         <div class="space-y-6">
             <div class="flex justify-between items-center">
                 <h1 class="text-3xl font-bold text-gray-900">Дашборд</h1>
 
-                <button class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition"
-                        hx-get="/integrations/new"
-                        hx-target="#modal-container">
+                <a href="/templates"
+                   class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
                     + Новая интеграция
-                </button>
+                </a>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                @StatCard("Всего интеграций", fmt.Sprint(stats["total_integrations"]), "🔌")
-                @StatCard("Активных", fmt.Sprint(stats["active_integrations"]), "✅")
-                @StatCard("Доставлено сегодня", fmt.Sprint(stats["today_deliveries"]), "📨")
+                @StatCard("Всего интеграций", fmt.Sprint(stats["total_instances"]), "🔌")
+                @StatCard("Активных", fmt.Sprint(stats["active_instances"]), "✅")
+                @StatCard("Шаблонов", fmt.Sprint(stats["total_templates"]), "📋")
             </div>
 
             <div class="bg-white rounded-lg shadow overflow-hidden">
                 <div class="px-6 py-4 border-b">
-                    <h2 class="text-xl font-semibold text-gray-800">Последние интеграции</h2>
+                    <h2 class="text-xl font-semibold text-gray-800">Мои интеграции</h2>
                 </div>
 
-                <div class="p-6" id="integrations-container">
-                    if len(integrations) > 0 {
+                <div class="p-6" id="instances-container">
+                    if len(instances) > 0 {
                         <div class="space-y-4">
-                            for _, i := range integrations {
-                                @IntegrationCard(i)
+                            for _, i := range instances {
+                                @InstanceCard(i)
                             }
                         </div>
                     } else {
                         <div class="text-center py-12">
                             <p class="text-gray-500 mb-4">У вас пока нет интеграций</p>
-                            <button class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-                                    hx-get="/integrations/new"
-                                    hx-target="#modal-container">
+                            <a href="/templates"
+                               class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
                                 Создать первую интеграцию
-                            </button>
+                            </a>
                         </div>
                     }
                 </div>
@@ -68,18 +66,18 @@ templ StatCard(title, value, icon string) {
     </div>
 }
 
-templ IntegrationCard(i *domain.Integration) {
+templ InstanceCard(i *domain.IntegrationInstance) {
     <div class="border rounded-lg p-4 hover:shadow-md transition">
         <div class="flex items-center justify-between">
             <div class="flex items-center space-x-4">
                 <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-xl">
-                    { sourceIcon(i.SourceType) }
+                    { i.Template.Icon }
                 </div>
 
                 <div>
                     <h3 class="font-semibold">{ i.Name }</h3>
                     <p class="text-sm text-gray-500">
-                        { i.SourceType } → Яндекс.Мессенджер
+                        { i.Template.Name } → Яндекс.Мессенджер
                     </p>
                 </div>
             </div>
@@ -91,41 +89,34 @@ templ IntegrationCard(i *domain.Integration) {
                     <span class="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">Неактивна</span>
                 }
 
-                <button class="text-indigo-600 hover:text-indigo-900"
-                        hx-get={ fmt.Sprintf("/integrations/%s/edit", i.ID) }
-                        hx-target="#modal-container">
-                    ✏️ Редактировать
+                <button class="text-purple-600 hover:text-purple-900"
+                        hx-get={ "/instances/" + i.ID + "/last-webhook" }
+                        hx-target="body"
+                        hx-swap="beforeend"
+                        hx-trigger="click"
+                        title="Последний запрос">
+                    🔍
                 </button>
 
+                <a href={ "/instances/" + i.ID + "/edit" }
+                   class="text-indigo-600 hover:text-indigo-900">
+                    ✏️
+                </a>
+
                 <button class="text-green-600 hover:text-green-900"
-                        hx-post={ fmt.Sprintf("/integrations/%s/test", i.ID) }
+                        hx-post={ "/instances/" + i.ID + "/test" }
                         hx-target="#test-result"
                         hx-swap="innerHTML">
-                    🚀 Тест
+                    🚀
                 </button>
 
                 <button class="text-red-600 hover:text-red-900"
-                        hx-delete={ fmt.Sprintf("/integrations/%s", i.ID) }
+                        hx-delete={ "/instances/" + i.ID }
                         hx-confirm="Удалить интеграцию?"
-                        hx-target="#integrations-container">
-                    🗑️ Удалить
+                        hx-target="#instances-container">
+                    🗑️
                 </button>
             </div>
         </div>
     </div>
-}
-
-func sourceIcon(source string) string {
-    switch source {
-    case "jira":
-        return "🎯"
-    case "gitlab":
-        return "🦊"
-    case "alertmanager":
-        return "🚨"
-    case "grafana":
-        return "📊"
-    default:
-        return "🔌"
-    }
 }
