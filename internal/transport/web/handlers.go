@@ -600,21 +600,4 @@ func (h *Handler) CreateCustomInstance(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, "/instances")
 }
 
-	// Создаём экземпляр
-	instance := &domain.IntegrationInstance{
-		TemplateID: template.ID,
-		UserID:     userID,
-		Name:       name,
-		ChatID:     chatID,
-		BotToken:   encryptedToken,
-		IsActive:   true,
-	}
-
-	if err := h.repo.CreateInstance(c.Request().Context(), instance); err != nil {
-		log.Error().Err(err).Msg("Failed to create instance")
-		return c.String(http.StatusInternalServerError, "Failed to create instance")
-	}
-
-	log.Info().Str("id", instance.ID).Str("name", name).Msg("Custom instance created")
-	return c.Redirect(http.StatusSeeOther, "/instances")
-}
+// Конец файла - больше ничего не должно быть
