@@ -10,7 +10,6 @@ templ CustomInstanceCreatePage(user *domain.User) {
         <div class="max-w-2xl mx-auto py-8">
             <div class="bg-white rounded-lg shadow p-6">
                 <h1 class="text-2xl font-bold mb-6">Создать кастомную интеграцию</h1>
-
                 <p class="text-gray-600 mb-6">
                     Создайте свою интеграцию с произвольным Liquid-шаблоном.
                     Вы сможете редактировать шаблон позже.
@@ -49,13 +48,7 @@ templ CustomInstanceCreatePage(user *domain.User) {
                         </label>
                         <textarea name="template_text" rows="10" required
                                   class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
-                                  placeholder='{{ "{{" }} .message {{ "}}" }}'>🔄 *Новое событие*
-
-{{ "{{" }} if .issue {{ "}}" }}
-Задача: {{ "{{" }} .issue.key {{ "}}" }} - {{ "{{" }} .issue.fields.summary {{ "}}" }}
-{{ "{{" }} else {{ "}}" }}
-Данные: {{ "{{" }} . {{ "}}" }}
-{{ "{{" }} end {{ "}}" }}</textarea>
+                                  placeholder="Введите Liquid шаблон..."></textarea>
                         <p class="text-xs text-gray-500 mt-1">
                             Доступны все поля из входящего JSON запроса.
                         </p>
