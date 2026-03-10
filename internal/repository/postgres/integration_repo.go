@@ -315,83 +315,6 @@ func (r *IntegrationRepository) FindAll(ctx context.Context) ([]*domain.Integrat
 	return integrations, nil
 }
 
-//// CreateDeliveryLog создает лог доставки
-//func (r *IntegrationRepository) CreateDeliveryLog(ctx context.Context, log *domain.DeliveryLog) error {
-//	query := `
-//        INSERT INTO delivery_logs (integration_id, source_event_id, request_payload, response_status, response_body, error, delivered_at, duration_ms)
-//        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-//        RETURNING id
-//    `
-//
-//	return r.db.QueryRowContext(ctx, query,
-//		log.IntegrationID,
-//		log.SourceEventID,
-//		log.RequestPayload,
-//		log.ResponseStatus,
-//		log.ResponseBody,
-//		log.Error,
-//		log.DeliveredAt,
-//		log.DurationMS,
-//	).Scan(&log.ID)
-//}
-
-//// GetDeliveryLogs получает логи доставки
-//func (r *IntegrationRepository) GetDeliveryLogs(ctx context.Context, integrationID string, userID string, limit, offset int) ([]*domain.DeliveryLog, int, error) {
-//	var logs []*domain.DeliveryLog
-//	var total int
-//
-//	checkQuery := `SELECT COUNT(*) FROM integrations WHERE id = $1 AND user_id = $2`
-//	var count int
-//	err := r.db.GetContext(ctx, &count, checkQuery, integrationID, userID)
-//	if err != nil {
-//		return nil, 0, err
-//	}
-//	if count == 0 {
-//		return nil, 0, sql.ErrNoRows
-//	}
-//
-//	totalQuery := `SELECT COUNT(*) FROM delivery_logs WHERE integration_id = $1`
-//	err = r.db.GetContext(ctx, &total, totalQuery, integrationID)
-//	if err != nil {
-//		return nil, 0, err
-//	}
-//
-//	query := `
-//        SELECT id, integration_id, source_event_id, request_payload, response_status, response_body, error, delivered_at, duration_ms
-//        FROM delivery_logs
-//        WHERE integration_id = $1
-//        ORDER BY delivered_at DESC
-//        LIMIT $2 OFFSET $3
-//    `
-//
-//	rows, err := r.db.QueryContext(ctx, query, integrationID, limit, offset)
-//	if err != nil {
-//		return nil, 0, err
-//	}
-//	defer rows.Close()
-//
-//	for rows.Next() {
-//		var log domain.DeliveryLog
-//		err := rows.Scan(
-//			&log.ID,
-//			&log.IntegrationID,
-//			&log.SourceEventID,
-//			&log.RequestPayload,
-//			&log.ResponseStatus,
-//			&log.ResponseBody,
-//			&log.Error,
-//			&log.DeliveredAt,
-//			&log.DurationMS,
-//		)
-//		if err != nil {
-//			return nil, 0, err
-//		}
-//		logs = append(logs, &log)
-//	}
-//
-//	return logs, total, nil
-//}
-
 // CreateUser создает пользователя
 func (r *IntegrationRepository) CreateUser(ctx context.Context, user *domain.User) error {
 	query := `
@@ -1049,4 +972,45 @@ func (r *IntegrationRepository) UpdateInstanceLastWebhook(ctx context.Context, i
     `
 	_, err := r.db.ExecContext(ctx, query, headers, body, lastAt, instanceID)
 	return err
+}
+
+// ListUsers возвращает список всех пользователей
+func (r *IntegrationRepository) ListUsers(ctx context.Context) ([]*domain.User, error) {
+	var users []*domain.User
+	query := `SELECT id, email, role, must_change_password, created_at, updated_at FROM users ORDER BY created_at DESC`
+	err := r.db.SelectContext(ctx, &users, query)
+	return users, err
+}
+
+// UpdateUser обновляет данные пользователя
+func (r *IntegrationRepository) UpdateUser(ctx context.Context, user *domain.User) error {
+	query := `UPDATE users SET email = $1, role = $2, updated_at = NOW() WHERE id = $3`
+	_, err := r.db.ExecContext(ctx, query, user.Email, user.Role, user.ID)
+	return err
+}
+
+// ChangePassword изменяет пароль пользователя
+func (r *IntegrationRepository) ChangePassword(ctx context.Context, userID string, newPasswordHash string) error {
+	query := `UPDATE users SET password_hash = $1, must_change_password = false, updated_at = NOW() WHERE id = $2`
+	_, err := r.db.ExecContext(ctx, query, newPasswordHash, userID)
+	return err
+}
+
+// DeleteUser удаляет пользователя
+func (r *IntegrationRepository) DeleteUser(ctx context.Context, id string) error {
+	query := `DELETE FROM users WHERE id = $1`
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }

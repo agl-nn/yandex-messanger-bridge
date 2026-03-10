@@ -2,12 +2,12 @@
 package web
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
-	"bytes"
-	"encoding/json"
 	//"math"
 
 	"github.com/labstack/echo/v4"
@@ -16,8 +16,8 @@ import (
 	"yandex-messenger-bridge/internal/domain"
 	repoInterface "yandex-messenger-bridge/internal/repository/interface"
 	"yandex-messenger-bridge/internal/service/encryption"
-	"yandex-messenger-bridge/internal/yandex"
 	"yandex-messenger-bridge/internal/web/templates/pages"
+	"yandex-messenger-bridge/internal/yandex"
 )
 
 // Handler - обработчик веб-интерфейса
@@ -611,4 +611,31 @@ func (h *Handler) CreateCustomInstance(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, "/instances")
 }
 
-// Конец файла - больше ничего не должно быть
+// ChangePasswordPage отображает страницу смены пароля
+func (h *Handler) ChangePasswordPage(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get user")
+	}
+
+	return pages.ChangePasswordPage(user).Render(c.Request().Context(), c.Response().Writer)
+}
+
+// UsersAdminPage отображает страницу управления пользователями
+func (h *Handler) UsersAdminPage(c echo.Context) error {
+	userID := getUserIDFromContext(c)
+	currentUser, err := h.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get current user")
+		return c.String(http.StatusInternalServerError, "Failed to load user")
+	}
+
+	users, err := h.repo.ListUsers(c.Request().Context())
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to load users")
+		return c.String(http.StatusInternalServerError, "Failed to load users")
+	}
+
+	return pages.UsersAdminPage(users, currentUser).Render(c.Request().Context(), c.Response().Writer)
+}

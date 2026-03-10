@@ -9,18 +9,18 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	_ "github.com/lib/pq"
 	"github.com/rs/zerolog/log"
 
 	"yandex-messenger-bridge/config"
 	"yandex-messenger-bridge/internal/repository/postgres"
-	"yandex-messenger-bridge/internal/transport/api"
-	"yandex-messenger-bridge/internal/transport/web"
-	authMiddleware "yandex-messenger-bridge/internal/transport/middleware"
-	"yandex-messenger-bridge/internal/service/webhook"
 	"yandex-messenger-bridge/internal/service/encryption"
+	"yandex-messenger-bridge/internal/service/webhook"
+	"yandex-messenger-bridge/internal/transport/api"
+	authMiddleware "yandex-messenger-bridge/internal/transport/middleware"
+	"yandex-messenger-bridge/internal/transport/web"
 	"yandex-messenger-bridge/internal/yandex"
 )
 
@@ -82,11 +82,15 @@ func main() {
 
 	// Публичные API эндпоинты
 	authAPI := api.NewAuthAPI(integrationRepo, cfg.JWTSecret)
+	usersAPI := api.NewUsersAPI(integrationRepo, cfg.JWTSecret)
+
 	e.POST("/api/v1/login", authAPI.Login)
+	e.POST("/api/v1/logout", authAPI.Logout)
 
 	// Публичные веб-эндпоинты
 	webHandler := web.NewHandler(integrationRepo, encryptor)
 	e.GET("/login", webHandler.LoginPage)
+	e.GET("/change-password", webHandler.ChangePasswordPage)
 
 	// Защищенные API эндпоинты
 	authMw := authMiddleware.NewAuthMiddleware(cfg.JWTSecret)
@@ -94,6 +98,25 @@ func main() {
 	apiGroup.Use(authMw.RequireAuth)
 	{
 		apiGroup.GET("/me", authAPI.Me)
+		apiGroup.POST("/change-password", authAPI.ChangePassword)
+
+		// Админские API для управления пользователями
+		adminGroup := apiGroup.Group("/admin")
+		adminGroup.Use(authMw.RequireAdmin)
+		{
+			adminGroup.GET("/users", usersAPI.ListUsers)
+			adminGroup.POST("/users", usersAPI.CreateUser)
+			adminGroup.PUT("/users/:id", usersAPI.UpdateUser)
+			adminGroup.DELETE("/users/:id", usersAPI.DeleteUser)
+			adminGroup.POST("/users/:id/reset-password", usersAPI.ResetPassword)
+		}
+	}
+
+	// API для смены пароля (доступно по временному токену)
+	tempGroup := e.Group("/api/v1")
+	tempGroup.Use(authMw.RequireTempAuth)
+	{
+		tempGroup.POST("/change-password", authAPI.ChangePassword)
 	}
 
 	// Защищенные веб-эндпоинты
@@ -101,7 +124,14 @@ func main() {
 	webGroup.Use(authMw.CookieAuth)
 	{
 		webGroup.GET("/", webHandler.Dashboard)
-		webGroup.POST("/logout", webHandler.Logout)
+		webGroup.GET("/change-password", webHandler.ChangePasswordPage)
+
+		// Админка для пользователей
+		adminWebGroup := webGroup.Group("/admin")
+		adminWebGroup.Use(authMw.RequireAdmin)
+		{
+			adminWebGroup.GET("/users", webHandler.UsersAdminPage)
+		}
 
 		// Админка для шаблонов
 		webGroup.GET("/admin/templates", webHandler.TemplatesAdminPage)
@@ -113,7 +143,7 @@ func main() {
 		// Пользовательские маршруты для шаблонов и экземпляров
 		webGroup.GET("/templates", webHandler.TemplatesUserPage)
 		webGroup.GET("/templates/custom/new", webHandler.CustomInstanceCreatePage)
-		webGroup.POST("/instances/custom", webHandler.CreateCustomInstance)
+		webGroup.POST("/templates/custom", webHandler.CreateCustomInstance)
 		webGroup.GET("/templates/:id/use", webHandler.InstanceCreatePage)
 		webGroup.POST("/instances", webHandler.CreateInstance)
 		webGroup.GET("/instances", webHandler.InstancesListPage)

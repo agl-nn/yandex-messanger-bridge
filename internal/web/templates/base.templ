@@ -64,9 +64,21 @@ templ Navbar(user *domain.User) {
                             Шаблоны
                         </a>
                         if user != nil && user.Role == "admin" {
-                            <a href="/admin/templates" class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
-                                Управление шаблонами
-                            </a>
+                            <div class="relative group">
+                                <button class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
+                                    Администрирование ▼
+                                </button>
+                                <div class="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden group-hover:block">
+                                    <div class="py-1">
+                                        <a href="/admin/templates" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                            Управление шаблонами
+                                        </a>
+                                        <a href="/admin/users" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                            Пользователи
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
                         }
                     </div>
                 </div>
@@ -84,7 +96,7 @@ templ Navbar(user *domain.User) {
                             </div>
                         </div>
 
-                        <form hx-post="/logout"
+                        <form hx-post="/api/v1/logout"
                               hx-target="body"
                               hx-push-url="true"
                               class="inline">
