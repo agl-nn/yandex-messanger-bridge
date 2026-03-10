@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog/log"
 )
 
 type AuthMiddleware struct {
@@ -21,6 +22,8 @@ func NewAuthMiddleware(jwtSecret string) *AuthMiddleware {
 // RequireAuth проверяет токен в cookie или заголовке (для API)
 func (m *AuthMiddleware) RequireAuth(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		// Логируем все cookie для отладки
+		log.Info().Interface("cookies", c.Request().Header.Get("Cookie")).Msg("Auth middleware cookies")
 		// Сначала проверяем cookie
 		cookie, err := c.Cookie("token")
 		if err == nil {
