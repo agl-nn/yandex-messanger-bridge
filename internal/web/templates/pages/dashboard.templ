@@ -18,22 +18,62 @@ templ Dashboard(stats map[string]interface{}, instances []*domain.IntegrationIns
                 </a>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Статистика -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                 @StatCard("Всего интеграций", fmt.Sprint(stats["total_instances"]), "🔌")
                 @StatCard("Активных", fmt.Sprint(stats["active_instances"]), "✅")
                 @StatCard("Шаблонов", fmt.Sprint(stats["total_templates"]), "📋")
+                @StatCard("Доступно шаблонов", fmt.Sprint(stats["public_templates"]), "🎯")
             </div>
 
+            <!-- Быстрые действия -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                @QuickActionCard(
+                    "Создать интеграцию",
+                    "Используйте готовый шаблон для быстрого старта",
+                    "/templates",
+                    "🎯",
+                )
+
+                if user != nil && user.Role == "admin" {
+                    @QuickActionCard(
+                        "Управление шаблонами",
+                        "Создавайте и редактируйте шаблоны для пользователей",
+                        "/admin/templates",
+                        "⚙️",
+                    )
+                }
+
+                @QuickActionCard(
+                    "Мои интеграции",
+                    "Просмотр и управление существующими интеграциями",
+                    "/instances",
+                    "📊",
+                )
+            </div>
+
+            <!-- Список интеграций -->
             <div class="bg-white rounded-lg shadow overflow-hidden">
-                <div class="px-6 py-4 border-b">
+                <div class="px-6 py-4 border-b flex justify-between items-center">
                     <h2 class="text-xl font-semibold text-gray-800">Мои интеграции</h2>
+                    <a href="/instances" class="text-blue-600 hover:text-blue-800 text-sm">
+                        Все интеграции →
+                    </a>
                 </div>
 
                 <div class="p-6" id="instances-container">
                     if len(instances) > 0 {
                         <div class="space-y-4">
-                            for _, i := range instances {
+                            for _, i := range instances[:min(5, len(instances))] {
                                 @InstanceCard(i)
+                            }
+
+                            if len(instances) > 5 {
+                                <div class="text-center pt-4">
+                                    <a href="/instances" class="text-blue-600 hover:text-blue-800">
+                                        Показать все { len(instances) } интеграций →
+                                    </a>
+                                </div>
                             }
                         </div>
                     } else {
@@ -64,6 +104,14 @@ templ StatCard(title, value, icon string) {
             <div class="text-4xl">{ icon }</div>
         </div>
     </div>
+}
+
+templ QuickActionCard(title, description, link, icon string) {
+    <a href={ link } class="block bg-white rounded-lg shadow p-6 hover:shadow-lg transition border-2 border-transparent hover:border-blue-500">
+        <div class="text-4xl mb-4">{ icon }</div>
+        <h3 class="text-lg font-semibold mb-2">{ title }</h3>
+        <p class="text-gray-600 text-sm">{ description }</p>
+    </a>
 }
 
 templ InstanceCard(i *domain.IntegrationInstance) {
@@ -119,4 +167,11 @@ templ InstanceCard(i *domain.IntegrationInstance) {
             </div>
         </div>
     </div>
+}
+
+func min(a, b int) int {
+    if a < b {
+        return a
+    }
+    return b
 }

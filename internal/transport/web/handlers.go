@@ -8,6 +8,7 @@ import (
 	"time"
 	"bytes"
 	"encoding/json"
+	"math"
 
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
@@ -51,7 +52,6 @@ func (h *Handler) Dashboard(c echo.Context) error {
 	user, err := h.repo.FindUserByID(c.Request().Context(), userID)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get user")
-		// Продолжаем без пользователя, но будет показана кнопка "Войти"
 	}
 
 	// Получаем экземпляры интеграций пользователя
@@ -59,6 +59,21 @@ func (h *Handler) Dashboard(c echo.Context) error {
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to load instances for dashboard")
 		return c.String(http.StatusInternalServerError, "Failed to load data")
+	}
+
+	// Получаем все доступные шаблоны для пользователя
+	templates, err := h.repo.ListTemplates(c.Request().Context(), userID, true)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to load templates for dashboard")
+		// Не прерываем выполнение, просто покажем 0
+	}
+
+	// Считаем публичные шаблоны
+	publicTemplates := 0
+	for _, t := range templates {
+		if t.IsPublic {
+			publicTemplates++
+		}
 	}
 
 	activeCount := 0
@@ -71,7 +86,8 @@ func (h *Handler) Dashboard(c echo.Context) error {
 	stats := map[string]interface{}{
 		"total_instances":  len(instances),
 		"active_instances": activeCount,
-		"total_templates":  0, // Можно добавить позже
+		"total_templates":  len(templates),
+		"public_templates": publicTemplates,
 	}
 
 	return pages.Dashboard(stats, instances, user).Render(c.Request().Context(), c.Response().Writer)

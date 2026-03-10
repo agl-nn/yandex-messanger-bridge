@@ -57,9 +57,17 @@ templ Navbar(user *domain.User) {
                         <a href="/" class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
                             Дашборд
                         </a>
-                        <a href="/integrations" class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
-                            Интеграции
+                        <a href="/instances" class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
+                            Мои интеграции
                         </a>
+                        <a href="/templates" class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
+                            Шаблоны
+                        </a>
+                        if user != nil && user.Role == "admin" {
+                            <a href="/admin/templates" class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
+                                Управление шаблонами
+                            </a>
+                        }
                     </div>
                 </div>
 
