@@ -196,3 +196,39 @@ func (u *UsersAPI) ResetPassword(c echo.Context) error {
 		"message": "Password reset successfully. User must change password on next login.",
 	})
 }
+
+// DeleteUser удаляет пользователя (только для админов)
+func (u *UsersAPI) DeleteUser(c echo.Context) error {
+	// Проверяем права админа
+	userRole := c.Get("user_role").(string)
+	if userRole != "admin" {
+		return c.JSON(http.StatusForbidden, map[string]string{"error": "access denied"})
+	}
+
+	userID := c.Param("id")
+	currentUserID := c.Get("user_id").(string)
+
+	// Нельзя удалить самого себя
+	if userID == currentUserID {
+		return c.JSON(http.StatusForbidden, map[string]string{"error": "cannot delete yourself"})
+	}
+
+	// Находим пользователя для проверки email
+	user, err := u.repo.FindUserByID(c.Request().Context(), userID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "user not found"})
+	}
+
+	// Нельзя удалить admin@localhost
+	if user.Email == "admin@localhost" {
+		return c.JSON(http.StatusForbidden, map[string]string{"error": "cannot delete default admin"})
+	}
+
+	if err := u.repo.DeleteUser(c.Request().Context(), userID); err != nil {
+		log.Error().Err(err).Msg("Failed to delete user")
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to delete user"})
+	}
+
+	log.Info().Str("email", user.Email).Msg("User deleted by admin")
+	return c.JSON(http.StatusOK, map[string]string{"message": "user deleted successfully"})
+}
