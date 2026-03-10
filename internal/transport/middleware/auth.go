@@ -6,7 +6,6 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
-	//"github.com/rs/zerolog/log"
 )
 
 type AuthMiddleware struct {
@@ -19,28 +18,32 @@ func NewAuthMiddleware(jwtSecret string) *AuthMiddleware {
 	}
 }
 
-// RequireAuth проверяет токен в заголовке (для API)
+// RequireAuth проверяет токен в cookie или заголовке (для API)
 func (m *AuthMiddleware) RequireAuth(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		// Сначала проверяем cookie
+		cookie, err := c.Cookie("token")
+		if err == nil {
+			claims, err := m.validateJWT(cookie.Value)
+			if err == nil {
+				c.Set("user_id", claims["user_id"])
+				c.Set("user_role", claims["role"])
+				return next(c)
+			}
+		}
+
+		// Затем проверяем заголовок Authorization
 		token := extractToken(c.Request())
-		if token == "" {
-			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "missing token"})
+		if token != "" {
+			claims, err := m.validateJWT(token)
+			if err == nil {
+				c.Set("user_id", claims["user_id"])
+				c.Set("user_role", claims["role"])
+				return next(c)
+			}
 		}
 
-		claims, err := m.validateJWT(token)
-		if err != nil {
-			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid token"})
-		}
-
-		// Проверяем, не временный ли это токен
-		if mustChange, ok := claims["must_change"].(bool); ok && mustChange {
-			return c.JSON(http.StatusForbidden, map[string]string{"error": "must change password"})
-		}
-
-		c.Set("user_id", claims["user_id"])
-		c.Set("user_role", claims["role"])
-
-		return next(c)
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "missing token"})
 	}
 }
 
@@ -51,17 +54,6 @@ func (m *AuthMiddleware) RequireTempAuth(next echo.HandlerFunc) echo.HandlerFunc
 		cookie, err := c.Cookie("temp_token")
 		if err == nil {
 			claims, err := m.validateJWT(cookie.Value)
-			if err == nil {
-				c.Set("user_id", claims["user_id"])
-				c.Set("user_role", claims["role"])
-				return next(c)
-			}
-		}
-
-		// Если нет temp_token, пробуем обычный токен (для уже авторизованных)
-		token := extractToken(c.Request())
-		if token != "" {
-			claims, err := m.validateJWT(token)
 			if err == nil {
 				c.Set("user_id", claims["user_id"])
 				c.Set("user_role", claims["role"])
@@ -87,7 +79,7 @@ func (m *AuthMiddleware) CookieAuth(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 		}
 
-		// Проверка временного токена (для страницы смены пароля)
+		// Проверка временного токена
 		tempCookie, err := c.Cookie("temp_token")
 		if err == nil {
 			claims, err := m.validateJWT(tempCookie.Value)
@@ -98,7 +90,6 @@ func (m *AuthMiddleware) CookieAuth(next echo.HandlerFunc) echo.HandlerFunc {
 					c.Set("user_role", claims["role"])
 					return next(c)
 				}
-				// Иначе редирект на смену пароля
 				return c.Redirect(http.StatusSeeOther, "/change-password")
 			}
 		}
@@ -116,7 +107,10 @@ func (m *AuthMiddleware) CookieAuth(next echo.HandlerFunc) echo.HandlerFunc {
 func (m *AuthMiddleware) RequireAdmin(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		role := c.Get("user_role")
-		if role == nil || role.(string) != "admin" {
+		if role == nil {
+			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		}
+		if role.(string) != "admin" {
 			return c.JSON(http.StatusForbidden, map[string]string{"error": "admin access required"})
 		}
 		return next(c)
