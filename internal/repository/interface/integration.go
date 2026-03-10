@@ -58,4 +58,10 @@ type IntegrationRepository interface {
 	GetInstanceByIDPublic(ctx context.Context, id string) (*domain.IntegrationInstance, error)
 	// UpdateInstanceLastWebhook обновляет поля последнего вебхука
 	UpdateInstanceLastWebhook(ctx context.Context, instanceID string, headers, body json.RawMessage, lastAt time.Time) error
+	// Управление пользователями
+	ListUsers(ctx context.Context) ([]*domain.User, error)
+	UpdateUser(ctx context.Context, user *domain.User) error
+	ChangePassword(ctx context.Context, userID string, newPasswordHash string) error
+	DeleteUser(ctx context.Context, id string) error
+	AdminResetPassword(ctx context.Context, userID string, newPasswordHash string) error
 }

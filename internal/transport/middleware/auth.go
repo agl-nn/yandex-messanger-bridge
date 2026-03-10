@@ -19,35 +19,23 @@ func NewAuthMiddleware(jwtSecret string) *AuthMiddleware {
 	}
 }
 
-// RequireAuth проверяет токен в заголовке (для API)
+// RequireAuth проверяет токен в cookie или заголовке (для API)
 func (m *AuthMiddleware) RequireAuth(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		token := extractToken(c.Request())
-		if token == "" {
-			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "missing token"})
+		// Логируем все cookie для отладки
+		log.Info().Interface("cookies", c.Request().Header.Get("Cookie")).Msg("Auth middleware cookies")
+		// Сначала проверяем cookie
+		cookie, err := c.Cookie("token")
+		if err == nil {
+			claims, err := m.validateJWT(cookie.Value)
+			if err == nil {
+				c.Set("user_id", claims["user_id"])
+				c.Set("user_role", claims["role"])
+				return next(c)
+			}
 		}
 
-		claims, err := m.validateJWT(token)
-		if err != nil {
-			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid token"})
-		}
-
-		c.Set("user_id", claims["user_id"])
-		c.Set("user_role", claims["role"])
-
-		return next(c)
-	}
-}
-
-// CookieAuth проверяет токен в cookie (для веб-интерфейса) с редиректом для браузеров
-func (m *AuthMiddleware) CookieAuth(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		log.Info().
-			Str("method", c.Request().Method).
-			Str("path", c.Request().URL.Path).
-			Str("cookie", c.Request().Header.Get("Cookie")).
-			Msg("🔍 CookieAuth middleware")
-		// Проверка токена в заголовке (для API)
+		// Затем проверяем заголовок Authorization
 		token := extractToken(c.Request())
 		if token != "" {
 			claims, err := m.validateJWT(token)
@@ -58,6 +46,31 @@ func (m *AuthMiddleware) CookieAuth(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 		}
 
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "missing token"})
+	}
+}
+
+// RequireTempAuth проверяет временный токен (для смены пароля)
+func (m *AuthMiddleware) RequireTempAuth(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		// Проверяем temp_token в cookie
+		cookie, err := c.Cookie("temp_token")
+		if err == nil {
+			claims, err := m.validateJWT(cookie.Value)
+			if err == nil {
+				c.Set("user_id", claims["user_id"])
+				c.Set("user_role", claims["role"])
+				return next(c)
+			}
+		}
+
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+	}
+}
+
+// CookieAuth проверяет токен в cookie (для веб-интерфейса)
+func (m *AuthMiddleware) CookieAuth(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
 		// Проверка токена в cookie
 		cookie, err := c.Cookie("token")
 		if err == nil {
@@ -69,14 +82,41 @@ func (m *AuthMiddleware) CookieAuth(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 		}
 
-		// Если нет токена, определяем тип клиента по заголовку Accept
+		// Проверка временного токена
+		tempCookie, err := c.Cookie("temp_token")
+		if err == nil {
+			claims, err := m.validateJWT(tempCookie.Value)
+			if err == nil {
+				// Если запрос на /change-password, пропускаем
+				if c.Path() == "/change-password" {
+					c.Set("user_id", claims["user_id"])
+					c.Set("user_role", claims["role"])
+					return next(c)
+				}
+				return c.Redirect(http.StatusSeeOther, "/change-password")
+			}
+		}
+
+		// Если нет токена, редирект на логин
 		accept := c.Request().Header.Get("Accept")
 		if strings.Contains(accept, "text/html") {
-			// Для браузера - редирект на страницу логина
 			return c.Redirect(http.StatusSeeOther, "/login")
 		}
-		// Для API-клиентов возвращаем JSON
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "missing token"})
+	}
+}
+
+// RequireAdmin проверяет права администратора
+func (m *AuthMiddleware) RequireAdmin(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		role := c.Get("user_role")
+		if role == nil {
+			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		}
+		if role.(string) != "admin" {
+			return c.JSON(http.StatusForbidden, map[string]string{"error": "admin access required"})
+		}
+		return next(c)
 	}
 }
 

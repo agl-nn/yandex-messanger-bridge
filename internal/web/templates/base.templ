@@ -13,6 +13,7 @@ templ Base(title string, user *domain.User) {
             <title>{ title } - Yandex Messenger Bridge</title>
 
             <script src="https://cdn.tailwindcss.com"></script>
+            <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
             <link rel="stylesheet" href="/static/css/custom.css"/>
         </head>
         <body class="bg-gray-50 min-h-screen flex flex-col">
@@ -64,9 +65,27 @@ templ Navbar(user *domain.User) {
                             Шаблоны
                         </a>
                         if user != nil && user.Role == "admin" {
-                            <a href="/admin/templates" class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
-                                Управление шаблонами
-                            </a>
+                            <div class="relative group" x-data="{ open: false }" @mouseenter="open = true" @mouseleave="open = false">
+                                <button class="hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">
+                                    Администрирование ▼
+                                </button>
+                                <div x-show="open"
+                                     x-transition
+                                     class="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                                    <div class="py-1">
+                                        <a href="/admin/templates"
+                                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                           @click="open = false">
+                                            Управление шаблонами
+                                        </a>
+                                        <a href="/admin/users"
+                                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                           @click="open = false">
+                                            Пользователи
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
                         }
                     </div>
                 </div>
@@ -84,9 +103,8 @@ templ Navbar(user *domain.User) {
                             </div>
                         </div>
 
-                        <form hx-post="/logout"
-                              hx-target="body"
-                              hx-push-url="true"
+                        <form action="/api/v1/logout" method="POST"
+                              onsubmit="event.preventDefault(); fetch('/api/v1/logout', {method: 'POST'}).then(() => window.location.href='/login')"
                               class="inline">
                             <button type="submit"
                                     class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm transition">

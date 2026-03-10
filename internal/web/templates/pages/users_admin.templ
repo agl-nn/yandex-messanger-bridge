@@ -1,0 +1,326 @@
+package pages
+
+import (
+    "yandex-messenger-bridge/internal/domain"
+    "yandex-messenger-bridge/internal/web/templates"
+)
+
+templ UsersAdminPage(users []*domain.User, currentUser *domain.User) {
+    @templates.Base("Управление пользователями", currentUser) {
+        <div class="space-y-6">
+            <div class="flex justify-between items-center">
+                <h1 class="text-3xl font-bold text-gray-900">Управление пользователями</h1>
+
+                <button onclick="document.getElementById('createUserModal').classList.remove('hidden')"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
+                    + Новый пользователь
+                </button>
+            </div>
+
+            <div id="users-container">
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Роль</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Дата создания</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            for _, u := range users {
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-gray-900">{ u.Email }</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        if u.Role == "admin" {
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                                                Администратор
+                                            </span>
+                                        } else {
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                Пользователь
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        if u.MustChangePassword {
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                Требуется смена пароля
+                                            </span>
+                                        } else {
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                Активен
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        { u.CreatedAt.Format("02.01.2006") }
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <button data-id={ u.ID }
+                                                data-email={ u.Email }
+                                                data-role={ u.Role }
+                                                onclick="editUser(this)"
+                                                class="text-indigo-600 hover:text-indigo-900 mr-3">
+                                            ✏️
+                                        </button>
+                                        if u.Email != "admin@localhost" {
+                                            <button data-id={ u.ID }
+                                                    onclick="resetUserPassword(this)"
+                                                    class="text-yellow-600 hover:text-yellow-900 mr-3"
+                                                    title="Сбросить пароль">
+                                                🔑
+                                            </button>
+                                        }
+                                        if u.Email != "admin@localhost" && u.ID != currentUser.ID {
+                                            <button data-id={ u.ID }
+                                                    onclick="deleteUser(this)"
+                                                    class="text-red-600 hover:text-red-900">
+                                                🗑️
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Модальное окно создания пользователя -->
+            <div id="createUserModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+                <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                    <div class="mt-3">
+                        <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Создать пользователя</h3>
+
+                        <form id="createUserForm" onsubmit="createUser(event)">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                <input type="email" name="email" required
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md"/>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Пароль</label>
+                                <input type="password" name="password" required minlength="6"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md"/>
+                                <p class="text-xs text-gray-500 mt-1">Минимальная длина 6 символов</p>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Роль</label>
+                                <select name="role" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                    <option value="user">Пользователь</option>
+                                    <option value="admin">Администратор</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="require_change" checked
+                                           class="rounded border-gray-300 text-blue-600 shadow-sm"/>
+                                    <span class="ml-2 text-sm text-gray-700">
+                                        Требовать смену пароля при первом входе
+                                    </span>
+                                </label>
+                            </div>
+
+                            <div class="flex justify-end space-x-3">
+                                <button type="button"
+                                        onclick="document.getElementById('createUserModal').classList.add('hidden')"
+                                        class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">
+                                    Отмена
+                                </button>
+                                <button type="submit"
+                                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                                    Создать
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Модальное окно редактирования пользователя -->
+            <div id="editUserModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+                <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                    <div class="mt-3">
+                        <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Редактировать пользователя</h3>
+
+                        <form id="editUserForm" onsubmit="updateUser(event)">
+                            <input type="hidden" name="user_id" id="edit_user_id"/>
+
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                <input type="email" name="email" id="edit_email" required
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md"/>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Роль</label>
+                                <select name="role" id="edit_role" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                    <option value="user">Пользователь</option>
+                                    <option value="admin">Администратор</option>
+                                </select>
+                            </div>
+
+                            <div class="flex justify-end space-x-3">
+                                <button type="button"
+                                        onclick="document.getElementById('editUserModal').classList.add('hidden')"
+                                        class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">
+                                    Отмена
+                                </button>
+                                <button type="submit"
+                                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                                    Сохранить
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function createUser(event) {
+                event.preventDefault();
+                const form = event.target;
+                const formData = new FormData(form);
+
+                const data = {
+                    email: formData.get('email'),
+                    password: formData.get('password'),
+                    role: formData.get('role'),
+                    require_change: formData.get('require_change') === 'on'
+                };
+
+                fetch('/api/v1/admin/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',  // Добавляем отправку cookie
+                    body: JSON.stringify(data)
+                })
+                .then(response => {
+                    if (response.ok) {
+                        location.reload();
+                    } else {
+                        return response.json().then(data => {
+                            alert('Ошибка: ' + data.error);
+                        });
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при создании пользователя');
+                });
+            }
+
+            function editUser(button) {
+                const id = button.getAttribute('data-id');
+                const email = button.getAttribute('data-email');
+                const role = button.getAttribute('data-role');
+
+                document.getElementById('edit_user_id').value = id;
+                document.getElementById('edit_email').value = email;
+                document.getElementById('edit_role').value = role;
+
+                document.getElementById('editUserModal').classList.remove('hidden');
+            }
+
+            function updateUser(event) {
+                event.preventDefault();
+                const form = event.target;
+                const formData = new FormData(form);
+
+                const userId = formData.get('user_id');
+                const data = {
+                    email: formData.get('email'),
+                    role: formData.get('role')
+                };
+
+                fetch('/api/v1/admin/users/' + userId, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',  // Добавляем отправку cookie
+                    body: JSON.stringify(data)
+                })
+                .then(response => {
+                    if (response.ok) {
+                        location.reload();
+                    } else {
+                        return response.json().then(data => {
+                            alert('Ошибка: ' + data.error);
+                        });
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при обновлении пользователя');
+                });
+            }
+
+            function resetUserPassword(button) {
+                const userId = button.getAttribute('data-id');
+                const newPassword = prompt('Введите новый пароль для пользователя:', '');
+
+                if (!newPassword || newPassword.length < 6) {
+                    alert('Пароль должен быть не менее 6 символов');
+                    return;
+                }
+
+                if (!confirm('Установить новый пароль для пользователя?')) {
+                    return;
+                }
+
+                fetch('/api/v1/admin/users/' + userId + '/reset-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',  // Добавляем отправку cookie
+                    body: JSON.stringify({ password: newPassword })
+                })
+                .then(response => {
+                    if (response.ok) {
+                        alert('Пароль успешно изменен');
+                    } else {
+                        return response.json().then(data => {
+                            alert('Ошибка: ' + data.error);
+                        });
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при сбросе пароля');
+                });
+            }
+
+            function deleteUser(button) {
+                const userId = button.getAttribute('data-id');
+                if (!confirm('Удалить пользователя? Это действие нельзя отменить.')) {
+                    return;
+                }
+
+                fetch('/api/v1/admin/users/' + userId, {
+                    method: 'DELETE',
+                    credentials: 'include'  // Добавляем отправку cookie
+                })
+                .then(response => {
+                    if (response.ok) {
+                        location.reload();
+                    } else {
+                        alert('Ошибка при удалении пользователя');
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при удалении пользователя');
+                });
+            }
+        </script>
+    }
+}

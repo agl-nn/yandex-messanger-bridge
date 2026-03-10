@@ -15,6 +15,7 @@ templ LoginPage() {
                 </div>
 
                 <div id="error-message" class="text-red-600 text-center hidden"></div>
+                <div id="info-message" class="text-blue-600 text-center hidden"></div>
 
                 <form class="mt-8 space-y-6" id="loginForm">
                     <div class="rounded-md shadow-sm -space-y-px">
@@ -59,18 +60,24 @@ templ LoginPage() {
                         headers: {
                             'Content-Type': 'application/json',
                         },
+                        credentials: 'include',  // Важно для отправки cookie
                         body: JSON.stringify({ email, password })
                     });
 
                     const data = await response.json();
 
-                    if (response.ok && data.token) {
-                        // Cookie уже установлена сервером, просто переходим на главную
-                        console.log('Login successful, redirecting to dashboard');
-                        window.location.href = '/';
+                    if (response.ok) {
+                        if (data.must_change_password) {
+                            console.log('Must change password, redirecting...');
+                            // Перенаправляем на страницу смены пароля
+                            window.location.href = '/change-password';
+                        } else if (data.token) {
+                            console.log('Login successful, redirecting to dashboard');
+                            window.location.href = '/';
+                        }
                     } else {
                         const errorDiv = document.getElementById('error-message');
-                        errorDiv.textContent = 'Неверный email или пароль';
+                        errorDiv.textContent = data.error || 'Неверный email или пароль';
                         errorDiv.classList.remove('hidden');
                     }
                 } catch (error) {
