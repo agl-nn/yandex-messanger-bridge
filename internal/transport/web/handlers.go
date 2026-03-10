@@ -16,7 +16,6 @@ import (
 	repoInterface "yandex-messenger-bridge/internal/repository/interface"
 	"yandex-messenger-bridge/internal/service/encryption"
 	"yandex-messenger-bridge/internal/yandex"
-	"yandex-messenger-bridge/internal/web/templates/components"
 	"yandex-messenger-bridge/internal/web/templates/pages"
 )
 

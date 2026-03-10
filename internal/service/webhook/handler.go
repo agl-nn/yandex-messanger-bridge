@@ -4,7 +4,6 @@ package webhook
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/osteele/liquid"
 	"github.com/rs/zerolog/log"
 
-	"yandex-messenger-bridge/internal/domain"
 	"yandex-messenger-bridge/internal/repository/interface"
 	"yandex-messenger-bridge/internal/service/encryption"
 	"yandex-messenger-bridge/internal/yandex"
@@ -59,15 +57,6 @@ func (h *Handler) readBody(r *http.Request) ([]byte, error) {
 	}
 	r.Body = io.NopCloser(bytes.NewBuffer(body))
 	return body, nil
-}
-
-// mapToStruct конвертирует map в struct
-func mapToStruct(m map[string]interface{}, s interface{}) error {
-	jsonData, err := json.Marshal(m)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(jsonData, s)
 }
 
 // HandleInstanceWebhook обрабатывает вебхуки для экземпляров интеграций

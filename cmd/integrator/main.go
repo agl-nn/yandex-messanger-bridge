@@ -76,7 +76,7 @@ func main() {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 
-	// Публичные webhook эндпоинты (только для новых экземпляров)
+	// Публичные webhook эндпоинты
 	webhookGroup := e.Group("/webhook")
 	webhookGroup.POST("/instance/:id", echo.WrapHandler(http.HandlerFunc(webhookHandler.HandleInstanceWebhook)))
 
@@ -93,7 +93,6 @@ func main() {
 	apiGroup := e.Group("/api/v1")
 	apiGroup.Use(authMw.RequireAuth)
 	{
-		// Здесь можно добавить API для шаблонов и экземпляров в будущем
 		apiGroup.GET("/me", authAPI.Me)
 	}
 
