@@ -60,22 +60,26 @@ func (a *AuthAPI) Login(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
 	}
 
+	log.Info().Str("user_id", user.ID).Bool("must_change_password", user.MustChangePassword).Msg("User found")
+
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
 	if err != nil {
 		log.Error().Err(err).Msg("Password mismatch")
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
 	}
 
+	log.Info().Msg("Password correct")
+
 	// Проверяем, нужно ли сменить пароль
 	if user.MustChangePassword {
-		log.Info().Str("user_id", user.ID).Msg("User must change password")
+		log.Info().Str("user_id", user.ID).Msg("🔴 USER MUST CHANGE PASSWORD - redirecting to change password page")
 
 		// Создаем временный токен для смены пароля
 		tempToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 			"user_id":     user.ID,
 			"role":        user.Role,
 			"must_change": true,
-			"exp":         time.Now().Add(1 * time.Hour).Unix(), // Короткий срок
+			"exp":         time.Now().Add(1 * time.Hour).Unix(),
 		})
 
 		tempTokenString, err := tempToken.SignedString(a.jwtSecret)
@@ -94,11 +98,19 @@ func (a *AuthAPI) Login(c echo.Context) error {
 			SameSite: http.SameSiteLaxMode,
 		})
 
-		return c.JSON(http.StatusOK, LoginResponse{
+		log.Info().Str("user_id", user.ID).Msg("Temp token cookie set")
+
+		// Возвращаем ответ с флагом
+		response := LoginResponse{
 			MustChangePassword: true,
 			Message:            "Please change your password",
-		})
+		}
+
+		log.Info().Interface("response", response).Msg("Sending must change password response")
+		return c.JSON(http.StatusOK, response)
 	}
+
+	log.Info().Str("user_id", user.ID).Msg("🟢 User does not need to change password - normal login")
 
 	// Обычная авторизация
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -113,7 +125,6 @@ func (a *AuthAPI) Login(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to generate token"})
 	}
 
-	// Устанавливаем основную cookie
 	c.SetCookie(&http.Cookie{
 		Name:     "token",
 		Value:    tokenString,
