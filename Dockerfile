@@ -1,42 +1,44 @@
-# Этап сборки
-FROM golang:1.22-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
-# Устанавливаем зависимости для сборки
-RUN apk add --no-cache git gcc musl-dev
+RUN apk add --no-cache git
 
 WORKDIR /app
 
-# Копируем модули
-COPY go.mod go.sum ./
+# Копируем только go.mod
+COPY go.mod ./
+
+# Скачиваем зависимости
 RUN go mod download
 
-# Копируем исходный код
+# Копируем остальной код
 COPY . .
 
-# Собираем бинарник
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/integrator ./cmd/integrator
+# Добавляем templ в go.mod (ВАЖНО!)
+RUN go get github.com/a-h/templ
 
-# Этап выполнения
+# Устанавливаем templ как бинарник
+RUN go install github.com/a-h/templ/cmd/templ@v0.3.1001
+
+# Генерируем шаблоны (ТЕПЕРЬ templ есть в go.mod)
+RUN templ generate
+
+# Теперь выполняем go mod tidy (после генерации шаблонов)
+RUN go mod tidy
+
+# Собираем приложение
+RUN CGO_ENABLED=0 GOOS=linux go build -o integrator ./cmd/integrator
+
 FROM alpine:latest
 
-# Устанавливаем CA сертификаты
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates
 
 WORKDIR /app
 
-# Копируем бинарник
-COPY --from=builder /app/bin/integrator /app/integrator
-
-# Копируем конфиги и миграции
+COPY --from=builder /app/integrator /app/
 COPY --from=builder /app/config /app/config
 COPY --from=builder /app/migrations /app/migrations
+COPY --from=builder /app/internal/web/static /app/internal/web/static
 
-# Создаем непривилегированного пользователя
-RUN adduser -D -u 1000 appuser
-USER appuser
-
-# Экспонируем порт
 EXPOSE 8080
 
-# Запускаем
-CMD ["/app/integrator"]
+CMD ["./integrator"]

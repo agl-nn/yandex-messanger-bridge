@@ -2,26 +2,26 @@ package main
 
 import (
 	"context"
-	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/spf13/viper"
+	_ "github.com/lib/pq"
+	"github.com/rs/zerolog/log"
 
-	"yandex-messenger-bridge/internal/config"
+	"yandex-messenger-bridge/config"
 	"yandex-messenger-bridge/internal/repository/postgres"
-	"yandex-messenger-bridge/internal/transport/api"
-	"yandex-messenger-bridge/internal/transport/middleware"
-	"yandex-messenger-bridge/internal/transport/web"
-	"yandex-messenger-bridge/internal/service/webhook"
-	"yandex-messenger-bridge/internal/yandex"
 	"yandex-messenger-bridge/internal/service/encryption"
+	"yandex-messenger-bridge/internal/service/webhook"
+	"yandex-messenger-bridge/internal/transport/api"
+	authMiddleware "yandex-messenger-bridge/internal/transport/middleware"
+	"yandex-messenger-bridge/internal/transport/web"
+	"yandex-messenger-bridge/internal/yandex"
 )
 
 func main() {
@@ -31,23 +31,23 @@ func main() {
 	// Подключаемся к БД
 	db, err := sqlx.Connect("postgres", cfg.DatabaseDSN)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal().Err(err).Msg("Failed to connect to database")
 	}
 	defer db.Close()
 
 	// Выполняем миграции
 	if err := postgres.RunMigrations(db.DB, cfg.DatabaseDSN); err != nil {
-		log.Fatal("Failed to run migrations:", err)
+		log.Fatal().Err(err).Msg("Failed to run migrations")
 	}
-
-	// Инициализируем репозитории
-	integrationRepo := postgres.NewIntegrationRepository(db)
 
 	// Инициализируем сервисы
 	encryptor := encryption.NewEncryptor(cfg.EncryptionKey)
-	yandexClient := yandex.NewClient(nil) // Клиент будет создаваться динамически
+	yandexClient := yandex.NewClient("") // Токен будет подставляться динамически
 
-	// Инициализируем обработчики вебхуков с поддержкой всех улучшений
+	// Инициализируем репозитории
+	integrationRepo := postgres.NewIntegrationRepository(db, encryptor)
+
+	// Инициализируем обработчики вебхуков
 	webhookHandler := webhook.NewHandler(
 		integrationRepo,
 		yandexClient,
@@ -55,6 +55,7 @@ func main() {
 		webhook.Config{
 			GitLabTimeout:       10 * time.Second,
 			AlertmanagerTimeout: 5 * time.Second,
+			JiraTimeout:         10 * time.Second,
 			MaxRetries:          3,
 		},
 	)
@@ -63,43 +64,103 @@ func main() {
 	e := echo.New()
 
 	// Middleware
+	e.Use(middleware.MethodOverrideWithConfig(middleware.MethodOverrideConfig{
+		Getter: func(c echo.Context) string {
+			if method := c.Request().Header.Get("X-HTTP-Method-Override"); method != "" {
+				return method
+			}
+			return c.FormValue("_method")
+		},
+	}))
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	e.Use(middleware.CORS())
 
-	// Публичные webhook эндпоинты (без аутентификации)
+	// Обновляем CORS middleware
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins:     []string{"http://localhost:8080"}, // Ваш домен
+		AllowMethods:     []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowCredentials: true, // Важно для отправки cookie
+	}))
+
+	// Публичные webhook эндпоинты
 	webhookGroup := e.Group("/webhook")
-	webhookGroup.POST("/:id/jira", webhookHandler.HandleJira)
-	webhookGroup.POST("/:id/gitlab", webhookHandler.HandleGitLab)
-	webhookGroup.POST("/:id/alertmanager", webhookHandler.HandleAlertmanager)
-	webhookGroup.POST("/:id/grafana", webhookHandler.HandleGrafana)
+	webhookGroup.POST("/instance/:id", echo.WrapHandler(http.HandlerFunc(webhookHandler.HandleInstanceWebhook)))
 
-	// API для фронтенда (с аутентификацией)
+	// Публичные API эндпоинты
+	authAPI := api.NewAuthAPI(integrationRepo, cfg.JWTSecret)
+	usersAPI := api.NewUsersAPI(integrationRepo, cfg.JWTSecret)
+
+	e.POST("/api/v1/login", authAPI.Login)
+	e.POST("/api/v1/logout", authAPI.Logout)
+
+	// Публичные веб-эндпоинты
+	webHandler := web.NewHandler(integrationRepo, encryptor)
+	e.GET("/login", webHandler.LoginPage)
+	e.GET("/change-password", webHandler.ChangePasswordPage)
+
+	// Защищенные API эндпоинты
+	authMw := authMiddleware.NewAuthMiddleware(cfg.JWTSecret)
 	apiGroup := e.Group("/api/v1")
-	apiGroup.Use(middleware.Auth(integrationRepo))
+	apiGroup.Use(authMw.RequireAuth)
 	{
-		integrationAPI := api.NewIntegrationAPI(integrationRepo, encryptor, cfg.BaseURL)
-		apiGroup.GET("/integrations", integrationAPI.List)
-		apiGroup.POST("/integrations", integrationAPI.Create)
-		apiGroup.GET("/integrations/:id", integrationAPI.Get)
-		apiGroup.PUT("/integrations/:id", integrationAPI.Update)
-		apiGroup.DELETE("/integrations/:id", integrationAPI.Delete)
-		apiGroup.GET("/integrations/:id/logs", integrationAPI.GetLogs)
-		apiGroup.POST("/integrations/:id/test", integrationAPI.Test)
+		apiGroup.GET("/me", authAPI.Me)
+		apiGroup.POST("/change-password", authAPI.ChangePassword)
+
+		// Админские API для управления пользователями
+		adminGroup := apiGroup.Group("/admin")
+		adminGroup.Use(authMw.RequireAdmin)
+		{
+			adminGroup.GET("/users", usersAPI.ListUsers)
+			adminGroup.POST("/users", usersAPI.CreateUser)
+			adminGroup.PUT("/users/:id", usersAPI.UpdateUser)
+			adminGroup.DELETE("/users/:id", usersAPI.DeleteUser)
+			adminGroup.POST("/users/:id/reset-password", usersAPI.ResetPassword)
+		}
 	}
 
-	// Веб-интерфейс
-	webHandler := web.NewHandler(integrationRepo)
-	e.GET("/", webHandler.Dashboard)
-	e.GET("/integrations", webHandler.IntegrationsPage)
-	e.GET("/integrations/new", webHandler.NewIntegrationForm)
-	e.POST("/integrations", webHandler.CreateIntegration)
-	e.GET("/integrations/:id/edit", webHandler.EditIntegrationForm)
-	e.PUT("/integrations/:id", webHandler.UpdateIntegration)
-	e.DELETE("/integrations/:id", webHandler.DeleteIntegration)
-	e.GET("/integrations/:id/logs", webHandler.IntegrationLogs)
-	e.POST("/integrations/:id/test", webHandler.TestIntegration)
-	e.GET("/integrations/source-config-fields", webHandler.SourceConfigFields)
+	// API для смены пароля (доступно по временному токену)
+	tempGroup := e.Group("/api/v1")
+	tempGroup.Use(authMw.RequireTempAuth)
+	{
+		tempGroup.POST("/change-password", authAPI.ChangePassword)
+	}
+
+	// Защищенные веб-эндпоинты
+	webGroup := e.Group("")
+	webGroup.Use(authMw.CookieAuth)
+	{
+		webGroup.GET("/", webHandler.Dashboard)
+		webGroup.GET("/change-password", webHandler.ChangePasswordPage)
+
+		// Админка для пользователей
+		adminWebGroup := webGroup.Group("/admin")
+		adminWebGroup.Use(authMw.RequireAdmin)
+		{
+			adminWebGroup.GET("/users", webHandler.UsersAdminPage)
+		}
+
+		// Админка для шаблонов
+		webGroup.GET("/admin/templates", webHandler.TemplatesAdminPage)
+		webGroup.GET("/admin/templates/new", webHandler.TemplateEditPage)
+		webGroup.GET("/admin/templates/:id/edit", webHandler.TemplateEditPage)
+		webGroup.POST("/admin/templates", webHandler.CreateTemplate)
+		webGroup.DELETE("/admin/templates/:id", webHandler.DeleteTemplate)
+
+		// Пользовательские маршруты для шаблонов и экземпляров
+		webGroup.GET("/templates", webHandler.TemplatesUserPage)
+		webGroup.GET("/templates/custom/new", webHandler.CustomInstanceCreatePage)
+		webGroup.POST("/templates/custom", webHandler.CreateCustomInstance)
+		webGroup.POST("/instances/custom", webHandler.CreateCustomInstance)
+		webGroup.GET("/templates/:id/use", webHandler.InstanceCreatePage)
+		webGroup.POST("/instances", webHandler.CreateInstance)
+		webGroup.GET("/instances", webHandler.InstancesListPage)
+		webGroup.POST("/instances/:id/test", webHandler.TestInstance)
+		webGroup.DELETE("/instances/:id", webHandler.DeleteInstance)
+		webGroup.GET("/instances/:id/edit", webHandler.EditInstanceForm)
+		webGroup.PUT("/instances/:id", webHandler.UpdateInstance)
+		webGroup.GET("/instances/:id/last-webhook", webHandler.GetLastWebhook)
+	}
 
 	// Статические файлы
 	e.Static("/static", "internal/web/static")
@@ -118,6 +179,6 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := e.Shutdown(ctx); err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Failed to shutdown server")
 	}
 }
