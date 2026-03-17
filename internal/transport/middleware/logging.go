@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -13,14 +12,11 @@ func LoggerMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		start := time.Now()
 
-		// Обрабатываем запрос
 		err := next(c)
 
-		// Собираем данные
 		stop := time.Now()
 		latency := stop.Sub(start)
 
-		// Создаем лог
 		logEvent := log.Info()
 		if err != nil {
 			logEvent = log.Error().Err(err)

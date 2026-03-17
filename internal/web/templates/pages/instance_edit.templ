@@ -1,0 +1,78 @@
+package pages
+
+import (
+    "yandex-messenger-bridge/internal/domain"
+    "yandex-messenger-bridge/internal/web/templates"
+)
+
+templ InstanceEditPage(instance *domain.IntegrationInstance, user *domain.User) {
+    @templates.Base("Редактирование интеграции", user) {
+        <div class="max-w-2xl mx-auto py-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center space-x-4 mb-6">
+                    <span class="text-4xl">{ instance.Template.Icon }</span>
+                    <div>
+                        <h1 class="text-2xl font-bold">Редактирование интеграции</h1>
+                        <p class="text-gray-600">{ instance.Template.Name }</p>
+                    </div>
+                </div>
+
+                <form hx-put={ "/instances/" + instance.ID }
+                      hx-target="body"
+                      hx-swap="innerHTML"
+                      hx-push-url="true"
+                      hx-on::after-request="if(event.detail.successful) window.location.href='/instances'"
+                      class="space-y-6">
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Название экземпляра</label>
+                        <input type="text" name="name" value={ instance.Name } required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md"/>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">ID чата</label>
+                        <input type="text" name="chat_id" value={ instance.ChatID } required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                               placeholder="0/0/fa15f152-..."/>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Токен бота</label>
+                        <input type="password" name="bot_token" value="***"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md"/>
+                        <p class="text-xs text-gray-500 mt-1">Оставьте пустым, чтобы не менять</p>
+                    </div>
+
+                    if instance.Template != nil {
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Liquid шаблон</label>
+                            <textarea name="template_text" rows="10"
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm">{ instance.Template.TemplateText }</textarea>
+                            <p class="text-xs text-gray-500 mt-1">Измените шаблон по своему усмотрению</p>
+                        </div>
+                    }
+
+                    <div>
+                        <label class="flex items-center">
+                            <input type="checkbox" name="is_active" class="rounded border-gray-300 text-blue-600 shadow-sm"
+                                   checked={ instance.IsActive }/>
+                            <span class="ml-2 text-sm text-gray-700">Интеграция активна</span>
+                        </label>
+                    </div>
+
+                    <div class="flex justify-end space-x-3">
+                        <a href="/instances"
+                           class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition">
+                            Отмена
+                        </a>
+                        <button type="submit"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                            Сохранить
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+}

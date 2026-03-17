@@ -1,11 +1,26 @@
 package domain
 
 import (
-	"time"
+	"database/sql"
 	"encoding/json"
+	"time"
 )
 
-// Integration - основная модель интеграции
+// User - пользователь системы
+type User struct {
+	ID                 string    `db:"id" json:"id"`
+	Email              string    `db:"email" json:"email"`
+	PasswordHash       string    `db:"password_hash" json:"-"`
+	DisplayName        string    `db:"display_name" json:"display_name"`
+	Username           string    `db:"username" json:"username"`
+	Role               string    `db:"role" json:"role"`
+	AuthType           string    `db:"auth_type" json:"auth_type"`
+	MustChangePassword bool      `db:"must_change_password" json:"must_change_password"`
+	CreatedAt          time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt          time.Time `db:"updated_at" json:"updated_at"`
+}
+
+// Integration - основная модель интеграции (старая, для обратной совместимости)
 type Integration struct {
 	ID                string                 `db:"id" json:"id"`
 	UserID            string                 `db:"user_id" json:"user_id"`
@@ -15,39 +30,31 @@ type Integration struct {
 	DestinationType   string                 `db:"destination_type" json:"destination_type"`
 	DestinationConfig DestinationConfig      `db:"destination_config" json:"destination_config"`
 	IsActive          bool                   `db:"is_active" json:"is_active"`
+	IsCustom          bool                   `db:"is_custom" json:"is_custom"`
+	TemplateID        *string                `db:"template_id" json:"template_id,omitempty"`
 	CreatedAt         time.Time              `db:"created_at" json:"created_at"`
 	UpdatedAt         time.Time              `db:"updated_at" json:"updated_at"`
-	WebhookURL        string                 `db:"-" json:"webhook_url"` // Не хранится в БД
+	WebhookURL        string                 `db:"-" json:"webhook_url"`
 }
 
-// DestinationConfig - конфигурация назначения (Yandex Messenger)
+// DestinationConfig - конфигурация назначения
 type DestinationConfig struct {
 	ChatID   string `json:"chat_id" db:"chat_id"`
 	BotToken string `json:"bot_token" db:"bot_token"`
 }
 
-// DeliveryLog - лог доставки сообщения
-type DeliveryLog struct {
-	ID             int64           `db:"id" json:"id"`
-	IntegrationID  string          `db:"integration_id" json:"integration_id"`
-	SourceEventID  string          `db:"source_event_id" json:"source_event_id"`
-	RequestPayload json.RawMessage `db:"request_payload" json:"request_payload"`
-	ResponseStatus int             `db:"response_status" json:"response_status"`
-	ResponseBody   json.RawMessage `db:"response_body" json:"response_body"`
-	Error          string          `db:"error" json:"error"`
-	DeliveredAt    time.Time       `db:"delivered_at" json:"delivered_at"`
-	DurationMS     int             `db:"duration_ms" json:"duration_ms"`
-}
-
-// User - пользователь системы
-type User struct {
-	ID           string    `db:"id" json:"id"`
-	Email        string    `db:"email" json:"email"`
-	PasswordHash string    `db:"password_hash" json:"-"`
-	Role         string    `db:"role" json:"role"`
-	CreatedAt    time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt    time.Time `db:"updated_at" json:"updated_at"`
-}
+//// DeliveryLog - лог доставки
+//type DeliveryLog struct {
+//	ID             int64           `db:"id" json:"id"`
+//	IntegrationID  string          `db:"integration_id" json:"integration_id"`
+//	SourceEventID  string          `db:"source_event_id" json:"source_event_id"`
+//	RequestPayload json.RawMessage `db:"request_payload" json:"request_payload"`
+//	ResponseStatus int             `db:"response_status" json:"response_status"`
+//	ResponseBody   json.RawMessage `db:"response_body" json:"response_body"`
+//	Error          string          `db:"error" json:"error"`
+//	DeliveredAt    time.Time       `db:"delivered_at" json:"delivered_at"`
+//	DurationMS     int             `db:"duration_ms" json:"duration_ms"`
+//}
 
 // APIKey - ключ для доступа к API
 type APIKey struct {
@@ -58,4 +65,43 @@ type APIKey struct {
 	LastUsedAt *time.Time `db:"last_used_at" json:"last_used_at"`
 	CreatedAt  time.Time  `db:"created_at" json:"created_at"`
 	ExpiresAt  *time.Time `db:"expires_at" json:"expires_at"`
+}
+
+// Template - постоянный шаблон интеграции
+type Template struct {
+	ID            string          `db:"id" json:"id"`
+	Name          string          `db:"name" json:"name"`
+	Description   string          `db:"description" json:"description,omitempty"`
+	Icon          string          `db:"icon" json:"icon,omitempty"`
+	TemplateText  string          `db:"template_text" json:"template_text"`
+	IsPublic      bool            `db:"is_public" json:"is_public"`
+	CreatedBy     sql.NullString  `db:"created_by" json:"created_by,omitempty"`
+	SamplePayload json.RawMessage `db:"sample_payload" json:"sample_payload,omitempty"`
+	CreatedAt     time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time       `db:"updated_at" json:"updated_at"`
+
+	// Для обратной совместимости со старой структурой
+	IntegrationID *string `db:"integration_id" json:"integration_id,omitempty"`
+}
+
+// IntegrationInstance - экземпляр интеграции (использование шаблона)
+type IntegrationInstance struct {
+	ID             string                 `db:"id" json:"id"`
+	TemplateID     string                 `db:"template_id" json:"template_id"`
+	UserID         string                 `db:"user_id" json:"user_id"`
+	Name           string                 `db:"name" json:"name"`
+	ChatID         string                 `db:"chat_id" json:"chat_id"`
+	BotToken       string                 `db:"bot_token" json:"-"`
+	IsActive       bool                   `db:"is_active" json:"is_active"`
+	CustomSettings map[string]interface{} `db:"custom_settings" json:"custom_settings"`
+
+	// Новые поля для хранения последнего вебхука
+	LastWebhookHeaders json.RawMessage `db:"last_webhook_headers" json:"last_webhook_headers,omitempty"`
+	LastWebhookBody    json.RawMessage `db:"last_webhook_body" json:"last_webhook_body,omitempty"`
+	LastWebhookAt      *time.Time      `db:"last_webhook_at" json:"last_webhook_at,omitempty"`
+
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+
+	Template *Template `db:"-" json:"template,omitempty"`
 }

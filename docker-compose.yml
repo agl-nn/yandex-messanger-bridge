@@ -17,22 +17,29 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - bridge-network
 
   app:
     build: .
     ports:
       - "8080:8080"
     environment:
-      - CONFIG_PATH=/app/config/config.yaml
       - DATABASE_DSN=postgres://integrator:secret@postgres:5432/integrator?sslmode=disable
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-32-byte-key-for-aes-256-encryption}
-      - JWT_SECRET=${JWT_SECRET:-your-32-byte-secret-key-change-in-production}
+      - PORT=8080
+      - BASE_URL=http://localhost:8080
+      - JWT_SECRET=your-secret-key-change-in-production
+      - ENCRYPTION_KEY=32-byte-key-for-aes-256-encryption-change-in-production
     depends_on:
       postgres:
         condition: service_healthy
-    volumes:
-      - ./config:/app/config
     restart: unless-stopped
+    networks:
+      - bridge-network
 
 volumes:
   postgres_data:
+
+networks:
+  bridge-network:
+    driver: bridge

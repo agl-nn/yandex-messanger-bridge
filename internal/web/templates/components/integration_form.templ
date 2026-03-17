@@ -1,0 +1,250 @@
+package components
+
+import (
+    "yandex-messenger-bridge/internal/domain"
+)
+
+templ IntegrationForm(integration *domain.Integration) {
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" id="modal">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                @FormHeader(integration)
+
+                if integration == nil {
+                    @CreateForm()
+                } else {
+                    @EditForm(integration)
+                }
+            </div>
+        </div>
+    </div>
+}
+
+templ CreateForm() {
+    <form hx-post="/integrations"
+          hx-swap="none"
+          hx-on::after-request="if(event.detail.successful) { document.getElementById('modal').remove(); window.location.reload(); }">
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Название
+            </label>
+            @NameInput(nil)
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Тип источника
+            </label>
+            @SourceTypeSelect(nil)
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                ID чата
+            </label>
+            @ChatIDInput(nil)
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Токен бота
+            </label>
+            @TokenInput(nil)
+        </div>
+
+        @CustomCheckbox(nil)
+        <div id="custom-template-field">
+            @CustomTemplateField(nil)
+        </div>
+
+        <div class="mb-4">
+            <label class="flex items-center">
+                @ActiveCheckbox(nil)
+                <span class="ml-2 text-sm text-gray-700">Интеграция активна</span>
+            </label>
+        </div>
+
+        <div class="flex justify-end space-x-3">
+            <button type="button"
+                    onclick="document.getElementById('modal').remove()"
+                    class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition">
+                Отмена
+            </button>
+            <button type="submit"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                Создать
+            </button>
+        </div>
+    </form>
+}
+
+templ EditForm(integration *domain.Integration) {
+    <form hx-put={ "/integrations/" + integration.ID }
+          hx-swap="none"
+          hx-on::after-request="if(event.detail.successful) { document.getElementById('modal').remove(); window.location.reload(); }">
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Название
+            </label>
+            @NameInput(integration)
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Тип источника
+            </label>
+            @SourceTypeSelect(integration)
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                ID чата
+            </label>
+            @ChatIDInput(integration)
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Токен бота
+            </label>
+            @TokenInput(integration)
+        </div>
+
+        @CustomCheckbox(integration)
+        <div id="custom-template-field">
+            @CustomTemplateField(integration)
+        </div>
+
+        <div class="mb-4">
+            <label class="flex items-center">
+                @ActiveCheckbox(integration)
+                <span class="ml-2 text-sm text-gray-700">Интеграция активна</span>
+            </label>
+        </div>
+
+        <div class="flex justify-end space-x-3">
+            <button type="button"
+                    onclick="document.getElementById('modal').remove()"
+                    class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition">
+                Отмена
+            </button>
+            <button type="submit"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                Сохранить
+            </button>
+        </div>
+    </form>
+}
+
+templ FormHeader(integration *domain.Integration) {
+    if integration != nil {
+        <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Редактирование интеграции</h3>
+    } else {
+        <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Новая интеграция</h3>
+    }
+}
+
+templ NameInput(integration *domain.Integration) {
+    if integration != nil {
+        <input type="text" name="name" value={ integration.Name } class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required/>
+    } else {
+        <input type="text" name="name" value="" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required/>
+    }
+}
+
+templ SourceTypeSelect(integration *domain.Integration) {
+    <select name="source_type" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+        <option value="">Выберите...</option>
+        @SourceOption("jira", "Jira", integration)
+        @SourceOption("gitlab", "GitLab", integration)
+        @SourceOption("alertmanager", "Alertmanager", integration)
+        @SourceOption("grafana", "Grafana", integration)
+    </select>
+}
+
+templ SourceOption(value, label string, integration *domain.Integration) {
+    if integration != nil && integration.SourceType == value {
+        <option value={ value } selected>{ label }</option>
+    } else {
+        <option value={ value }>{ label }</option>
+    }
+}
+
+templ ChatIDInput(integration *domain.Integration) {
+    if integration != nil {
+        <input type="text" name="chat_id" value={ integration.DestinationConfig.ChatID } class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0/0/fa15f152-..." required/>
+    } else {
+        <input type="text" name="chat_id" value="" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0/0/fa15f152-..." required/>
+    }
+}
+
+templ TokenInput(integration *domain.Integration) {
+    if integration != nil {
+        <input type="password" name="bot_token" value="***" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required/>
+    } else {
+        <input type="password" name="bot_token" value="" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required/>
+    }
+}
+
+templ ActiveCheckbox(integration *domain.Integration) {
+    if integration == nil || integration.IsActive {
+        <input type="checkbox" name="is_active" class="rounded border-gray-300 text-blue-600 shadow-sm" checked/>
+    } else {
+        <input type="checkbox" name="is_active" class="rounded border-gray-300 text-blue-600 shadow-sm"/>
+    }
+}
+
+// ================ Новые компоненты для кастомных интеграций ================
+
+templ CustomCheckbox(integration *domain.Integration) {
+    <div class="mb-4">
+        <label class="flex items-center">
+            <input type="checkbox"
+                   name="is_custom"
+                   class="rounded border-gray-300 text-blue-600 shadow-sm"
+                   hx-trigger="change"
+                   hx-target="#custom-template-field"
+                   hx-swap="innerHTML"
+                   checked={ integration != nil && integration.IsCustom }/>
+            <span class="ml-2 text-sm text-gray-700">Кастомная интеграция (Liquid шаблон)</span>
+        </label>
+        <p class="text-xs text-gray-500 mt-1">
+            Позволяет настроить формат сообщения с помощью Liquid-шаблонов
+        </p>
+    </div>
+}
+
+templ CustomTemplateField(integration *domain.Integration) {
+    if integration != nil && integration.IsCustom {
+        <div class="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Liquid шаблон
+                <a href="https://shopify.github.io/liquid/" target="_blank" class="text-xs text-blue-600 hover:text-blue-800 ml-2">
+                    (документация)
+                </a>
+            </label>
+            <textarea name="template_text"
+                      rows="6"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Введите Liquid шаблон..."></textarea>
+            <p class="text-xs text-gray-500 mt-1">
+                Доступны все поля из входящего JSON запроса.
+            </p>
+
+            <div class="mt-3 flex space-x-2">
+                <button type="button"
+                        class="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition"
+                        hx-post={ "/integrations/" + integration.ID + "/test-template" }
+                        hx-target="#template-test-result"
+                        hx-swap="innerHTML">
+                    🔍 Тест шаблона
+                </button>
+                <div id="template-test-result" class="text-sm"></div>
+            </div>
+        </div>
+    } else {
+        <div id="custom-template-field"></div>
+    }
+}
