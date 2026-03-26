@@ -1,0 +1,63 @@
+# Количество реплик
+replicaCount: 2
+
+# Настройки образа
+image:
+  repository: your-registry/integrator
+  tag: latest
+  pullPolicy: Always
+
+# Настройки приложения
+app:
+  port: 8080
+  baseUrl: "https://webhook.your-domain.ru"
+
+# База данных
+database:
+  host: "postgres-service"
+  port: 5432
+  name: "integrator"
+  user: "integrator"
+  password: "secret"  # переопределить через secrets
+  sslmode: "disable"
+
+# Секреты (обязательно переопределить при установке)
+secrets:
+  jwtSecret: "change-me-in-production"
+  encryptionKey: "change-me-in-production-32bytes"
+  # databasePassword уже задан выше
+
+# Миграции
+migrations:
+  enabled: true
+
+# Ingress
+ingress:
+  enabled: true
+  className: "nginx"
+  host: "webhook.your-domain.ru"
+  tls:
+    enabled: true
+    secretName: "webhook-tls"
+    issuerName: "letsencrypt-prod"
+
+# Service
+service:
+  type: ClusterIP
+  port: 80
+
+# Ресурсы
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Масштабирование (опционально)
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80

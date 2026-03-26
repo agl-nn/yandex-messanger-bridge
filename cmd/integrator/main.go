@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,6 +26,10 @@ import (
 )
 
 func main() {
+	// Добавляем флаг для режима миграции
+	migrateOnly := flag.Bool("migrate", false, "Run migrations only and exit")
+	flag.Parse()
+
 	// Загружаем конфигурацию
 	cfg := config.Load()
 
@@ -36,8 +41,16 @@ func main() {
 	defer db.Close()
 
 	// Выполняем миграции
+	log.Info().Msg("Running database migrations...")
 	if err := postgres.RunMigrations(db.DB, cfg.DatabaseDSN); err != nil {
 		log.Fatal().Err(err).Msg("Failed to run migrations")
+	}
+	log.Info().Msg("Migrations completed successfully")
+
+	// Если только миграции - завершаем работу
+	if *migrateOnly {
+		log.Info().Msg("Migration mode: exiting")
+		return
 	}
 
 	// Инициализируем сервисы
@@ -74,13 +87,11 @@ func main() {
 	}))
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-
-	// Обновляем CORS middleware
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{"http://localhost:8080"}, // Ваш домен
+		AllowOrigins:     []string{"http://localhost:8080"},
 		AllowMethods:     []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete},
 		AllowHeaders:     []string{"Content-Type", "Authorization"},
-		AllowCredentials: true, // Важно для отправки cookie
+		AllowCredentials: true,
 	}))
 
 	// Публичные webhook эндпоинты
@@ -162,7 +173,7 @@ func main() {
 		webGroup.GET("/instances/:id/last-webhook", webHandler.GetLastWebhook)
 	}
 
-	// Статические файлы
+	// Статические файлы (иконки уже в образе)
 	e.Static("/static", "internal/web/static")
 
 	// Graceful shutdown
