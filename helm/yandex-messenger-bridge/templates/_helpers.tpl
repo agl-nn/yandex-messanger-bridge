@@ -63,7 +63,7 @@ Create the name of the service account to use
 Database DSN
 */}}
 {{- define "yandex-messenger-bridge.databaseDsn" -}}
-{{- printf "postgres://%s:%s@%s:%d/%s?sslmode=%s"
+{{- printf "postgres://%s:%s@%s:%v/%s?sslmode=%s"
     .Values.database.user
     .Values.database.password
     .Values.database.host

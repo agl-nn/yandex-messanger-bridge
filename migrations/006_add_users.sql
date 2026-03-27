@@ -7,7 +7,7 @@ INSERT INTO users (id, email, password_hash, role, must_change_password, created
 VALUES (
            gen_random_uuid(),
            'admin@localhost',
-           '$2a$10$N9qo8uLOickgx2ZMRZoMy.MrZ4KhJfjb3TXBz3VPzQvQg9QzYqXKu', -- hash for 'admin'
+           '$2b$12$izez7PfvXU83ag6J8j4/NuNuNMWenlDRPcdDLPEC1maoMQGYxuWG.', -- hash for 'admin'
            'admin',
            true,
            NOW(),
