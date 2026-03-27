@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "yandex-messenger-bridge.fullname" . }}
+  labels:
+    {{- include "yandex-messenger-bridge.labels" . | nindent 4 }}
+data:
+  PORT: {{ .Values.app.port | quote }}
+  BASE_URL: {{ .Values.app.baseUrl | quote }}
+  # Другие переменные окружения
+  GITLAB_TIMEOUT: "10s"
+  ALERTMANAGER_TIMEOUT: "5s"
+  JIRA_TIMEOUT: "10s"
+  MAX_RETRIES: "3"
